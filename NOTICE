@@ -1,0 +1,50 @@
+Tessera IDP
+Copyright 2026 Losol AS
+
+Licensed under the Mozilla Public License 2.0 (MPL-2.0). See LICENSE for the
+full text; individual source files carry SPDX headers.
+
+This repository builds two artifacts that bundle third-party components under
+their own licenses, attributed below.
+
+================================================================================
+Theme — themes/ratio  (keycloak-ratio-theme.jar)
+================================================================================
+
+@eventuras/ratio-ui — design system (components, tokens, fonts), bundled
+    Copyright Losol AS
+    SPDX-License-Identifier: MPL-2.0
+    https://www.npmjs.com/package/@eventuras/ratio-ui
+
+Keycloakify — build tooling; the generated bootstrap (src/kc.gen.tsx) and the
+initial project scaffolding derive from keycloakify / keycloakify-starter.
+    Copyright the Keycloakify authors
+    SPDX-License-Identifier: MIT
+    https://www.keycloakify.dev/
+
+ALTCHA widget — registers the <altcha-widget> custom element, bundled
+    npm "altcha" 3.0.11
+    SPDX-License-Identifier: MIT
+    https://altcha.org/  ·  https://github.com/altcha-org/altcha
+
+================================================================================
+Plugin — plugins/tessera-otp  (keycloak-tessera-otp-*.jar, shaded)
+================================================================================
+
+The provider JAR is built with the Maven Shade plugin and embeds:
+
+ALTCHA — proof-of-work captcha (server-side challenge generation)
+    Java library:  org.altcha:altcha 2.0.2
+    SPDX-License-Identifier: MIT
+    https://altcha.org/  ·  https://github.com/altcha-org/altcha
+
+android-json — clean-room org.json API implementation (from the Android SDK);
+supplies the org.json.* classes ALTCHA's Java lib calls, replacing the reference
+org.json:json to keep the distribution free of the non-free "JSON License".
+    com.vaadin.external.google:android-json 0.0.20131108.vaadin1
+    SPDX-License-Identifier: Apache-2.0
+    https://central.sonatype.com/artifact/com.vaadin.external.google/android-json
+
+--------------------------------------------------------------------------------
+Keycloak (org.keycloak:*) is a provided (non-bundled) dependency.
+    SPDX-License-Identifier: Apache-2.0  ·  https://www.keycloak.org/

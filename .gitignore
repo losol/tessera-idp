@@ -1,0 +1,57 @@
+# ---------------------------------------------------------------------------
+# Root .gitignore for the tessera-idp monorepo.
+# Cross-cutting rules only — each subproject (plugins/*, themes/*) keeps its own
+# .gitignore for tool-specific output. These globs also cover future subprojects.
+# ---------------------------------------------------------------------------
+
+# --- OS ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+Desktop.ini
+
+# --- Editors / IDEs ---
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+*.local
+*.pem
+*.key
+
+# --- Logs ---
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Java / Maven (plugins/*) ---
+**/target/
+*.class
+
+# --- Node / Vite / Keycloakify (themes/*) ---
+**/node_modules/
+**/dist/
+**/dist_keycloak/
+**/dist_smoke/
+**/storybook-static/
+**/.rendered/
+**/test-results/
+**/playwright-report/
+**/.vite/
+.npm/
+
+# --- Misc ---
+*.tmp
+*.bak

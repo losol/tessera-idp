@@ -1,0 +1,393 @@
+/*
+ * ratio · Keycloak login theme
+ * SPDX-FileCopyrightText: 2026 Losol AS
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
+/*
+ * Login theme stylesheet entry.
+ *
+ * Pulls in the Ratio UI design system so every login page inherits the
+ * same tokens, typography and component styles as the rest of the org's
+ * apps:
+ *
+ *   - `fonts.css`    self-hosted brand fonts (Source Serif 4 / Source
+ *                    Sans 3). The @font-face rules use relative `url()`
+ *                    refs to woff2 assets inside the package; importing
+ *                    the file here lets Vite resolve and emit those
+ *                    assets into the built theme.
+ *   - `ratio-ui.css` the full precompiled bundle: design tokens, the
+ *                    base layer and all component/utility classes the
+ *                    Ratio React components rely on.
+ *
+ * Imported once from KcPage so it is bundled into the login entrypoint.
+ */
+@import "@eventuras/ratio-ui/fonts.css";
+@import "@eventuras/ratio-ui/ratio-ui.css";
+
+/*
+ * Login layout. Plain CSS keyed off Ratio design tokens (defined in
+ * ratio-ui.css) so the shell matches the design system without relying on
+ * Tailwind's build step. Class names are scoped under `ratio-login` to
+ * avoid clashing with Keycloak's own ids/classes.
+ */
+.ratio-login__body {
+    margin: 0;
+    background-color: var(--color-neutral-50, #f5f5f4);
+    color: var(--text, var(--color-neutral-900, #1c1917));
+    font-family: var(--font-sans, "Source Sans 3", system-ui, sans-serif);
+}
+
+.ratio-login__page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    padding: 2rem 1rem;
+    box-sizing: border-box;
+}
+
+.ratio-login__card {
+    width: 100%;
+    max-width: 26rem;
+    padding: 2rem;
+}
+
+.ratio-login__header {
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.ratio-login__brand {
+    font-family: var(--font-serif, "Source Serif 4", Georgia, serif);
+    font-size: 1.5rem;
+    margin: 0 0 0.25rem;
+    color: var(--color-primary-700, #1f4f6b);
+}
+
+.ratio-login__title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 0.5rem 0 0;
+}
+
+.ratio-login__locales {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+}
+
+.ratio-login__locales ul {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0;
+    font-size: 0.8125rem;
+}
+
+.ratio-login__locales a[aria-current="true"] {
+    font-weight: 600;
+    text-decoration: underline;
+}
+
+.ratio-login__alert {
+    border-radius: var(--radius-md, 0.5rem);
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+    border: 1px solid transparent;
+}
+
+.ratio-login__alert--error {
+    background-color: var(--error-50, #fef2f2);
+    border-color: var(--error-solid, #dc2626);
+    color: var(--error-solid, #991b1b);
+}
+
+.ratio-login__alert--warning {
+    background-color: var(--warning-50, #fffbeb);
+    border-color: var(--warning-solid, #d97706);
+    color: var(--warning-solid, #92400e);
+}
+
+.ratio-login__alert--success {
+    background-color: var(--success-50, #f0fdf4);
+    border-color: var(--success-solid, #16a34a);
+    color: var(--success-solid, #166534);
+}
+
+.ratio-login__alert--info {
+    background-color: var(--info-50, #eff6ff);
+    border-color: var(--info-solid, #2563eb);
+    color: var(--info-solid, #1e40af);
+}
+
+.ratio-login__info {
+    margin-top: 1.5rem;
+    text-align: center;
+    font-size: 0.875rem;
+}
+
+.ratio-login__footer {
+    text-align: center;
+}
+
+/* Login form layout (the page-level component renders into this). */
+.ratio-login__form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.ratio-login__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+/*
+ * Full-width input styled with Ratio tokens. Passing `className` to the
+ * Ratio `Input` replaces its built-in styles, so the field styling is
+ * fully specified here.
+ */
+.ratio-login__input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-1, #d6d3d1);
+    border-radius: var(--radius-lg, 0.5rem);
+    background-color: var(--card, #ffffff);
+    color: var(--text, var(--color-neutral-900, #1c1917));
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+.ratio-login__input:focus {
+    outline: none;
+    border-color: var(--color-primary-500, #3a86a8);
+    box-shadow: 0 0 0 2px var(--focus-ring, rgba(58, 134, 168, 0.4));
+}
+
+.ratio-login__field-error {
+    font-size: 0.8125rem;
+    color: var(--error-solid, #dc2626);
+}
+
+/*
+ * Styling for keycloakify's default pages (update-profile, update-password,
+ * info, error, …). Those pages keep Keycloak's stock markup; the classes
+ * below — mapped from keycloakify `ClassKey`s in KcPage — give them the same
+ * Ratio look as the custom pages above without changing their form contracts.
+ */
+
+/* Field label rendered above each input. */
+.ratio-login__label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text, var(--color-neutral-900, #1c1917));
+}
+
+/* Wrapper around the input + inline error/help (keeps them stacked). */
+.ratio-login__input-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+/* Helper text shown before/after a field. */
+.ratio-login__field-help {
+    font-size: 0.8125rem;
+    color: var(--text-muted, var(--color-neutral-600, #57534e));
+}
+
+/* Section header within a grouped User Profile form. */
+.ratio-login__field-group-header {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    margin: 0.5rem 0 0;
+    color: var(--text, var(--color-neutral-900, #1c1917));
+}
+
+/* Container holding the submit/cancel buttons. */
+.ratio-login__buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    margin-top: 0.5rem;
+}
+
+/*
+ * Base button shape shared by every default-page button. Keycloakify joins
+ * this with the modifier classes below, so the variant-specific fill and
+ * width are layered on top.
+ */
+.ratio-login__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.625rem 1.25rem;
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: inherit;
+    line-height: 1.5;
+    text-align: center;
+    text-decoration: none;
+    border: 1.5px solid transparent;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.ratio-login__btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Filled primary action — matches the custom Login page's #kc-login button. */
+.ratio-login__btn--primary {
+    background-color: var(--primary, #2563eb);
+    border-color: var(--primary, #2563eb);
+    color: var(--text-on-primary, #ffffff);
+}
+
+.ratio-login__btn--primary:not(:disabled):hover {
+    opacity: 0.92;
+}
+
+/* Outlined secondary/cancel action. */
+.ratio-login__btn--secondary {
+    background-color: var(--card, #ffffff);
+    border-color: var(--border-1, #e7e5e4);
+    color: var(--text, var(--color-neutral-900, #1c1917));
+}
+
+.ratio-login__btn--secondary:not(:disabled):hover {
+    border-color: var(--primary, #2563eb);
+    background-color: var(--color-neutral-50, #fafaf9);
+}
+
+/* Full-width (pill stretches across the card). */
+.ratio-login__btn--block {
+    width: 100%;
+}
+
+.ratio-login__form-options {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.ratio-login__remember-me {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ratio-login__social {
+    margin-top: 0.5rem;
+}
+
+.ratio-login__social-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+}
+
+/* Identity-provider buttons (Vipps, GitHub) — the primary login choice. */
+.ratio-login__social-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 0.75rem 1.25rem;
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--text, #1c1917);
+    background: var(--card, #fff);
+    border: 1.5px solid var(--border-1, #e7e5e4);
+    border-radius: 9999px;
+    transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+}
+
+.ratio-login__social-btn:hover {
+    border-color: var(--primary, #2563eb);
+    background: var(--color-neutral-50, #fafaf9);
+}
+
+.ratio-login__social-btn:active {
+    transform: scale(1.02);
+}
+
+/* Secondary email one-time-code path. */
+.ratio-login__otp {
+    margin-top: 1.25rem;
+    text-align: center;
+}
+
+.ratio-login__divider {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 1rem 0;
+    color: var(--text-muted, #78716c);
+    font-size: 0.8125rem;
+}
+
+.ratio-login__divider::before,
+.ratio-login__divider::after {
+    content: "";
+    flex: 1 1 auto;
+    border-top: 1px solid var(--border-1, #e7e5e4);
+}
+
+.ratio-login__textlink {
+    background: none;
+    border: none;
+    padding: 0.25rem;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--primary, #2563eb);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.ratio-login__textlink:hover {
+    opacity: 0.85;
+}
+
+/* Password field with an inline show/hide toggle. */
+.ratio-login__password-group {
+    display: flex;
+    align-items: stretch;
+    gap: 0.5rem;
+}
+
+.ratio-login__password-group > :first-child {
+    flex: 1 1 auto;
+}
+
+.ratio-login__password-toggle {
+    flex: 0 0 auto;
+    background: none;
+    border: 1px solid var(--border-1, #e7e5e4);
+    border-radius: var(--radius-md, 0.5rem);
+    padding: 0 0.75rem;
+    font-size: 0.8125rem;
+    color: var(--text-muted, var(--color-neutral-600, #57534e));
+    cursor: pointer;
+}
+
+.ratio-login__password-toggle:hover {
+    color: var(--text, var(--color-neutral-900, #1c1917));
+}

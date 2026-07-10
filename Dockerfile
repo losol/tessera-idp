@@ -1,0 +1,47 @@
+# Tessera IDP — custom Keycloak image: tessera-otp provider + Ratio login theme.
+# Build context = repo root (reaches both plugins/ and themes/).
+#
+#   docker build -t ghcr.io/losol/tessera-idp:<tag> .
+#
+# Consumed by a Keycloak Operator `Keycloak` CR via `spec.image`, so the
+# providers (the tessera-otp JAR + the keycloakify theme JAR) are baked in and
+# `kc.sh build` runs — the image is "optimized" and needs no runtime mounts.
+
+ARG KEYCLOAK_VERSION=26.6.4
+
+# 1. Build the tessera-otp provider JAR from source.
+FROM maven:3.9-eclipse-temurin-17 AS plugin
+WORKDIR /build
+COPY plugins/tessera-otp/pom.xml .
+COPY plugins/tessera-otp/src ./src
+# Tests run here on purpose: AltchaAndroidJsonTest is the build-time guard that
+# altcha still works against the shaded android-json org.json implementation.
+RUN mvn -q -B package
+
+# 2. Build the Ratio login theme (keycloakify → theme JAR).
+# keycloakify packages the JAR with Maven, so install it (+ a JDK) here.
+FROM node:24 AS theme
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends maven \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /theme
+COPY themes/ratio/package.json themes/ratio/package-lock.json ./
+RUN npm ci
+COPY themes/ratio/ ./
+RUN npm run build-keycloak-theme
+
+# 3. Bake providers into Keycloak and run the build step.
+# db/health/metrics are build-time options — bake them so the optimized image
+# can start with --optimized (the operator requires health for its probes).
+FROM quay.io/keycloak/keycloak:${KEYCLOAK_VERSION} AS builder
+COPY --from=plugin /build/target/keycloak-tessera-otp-*.jar /opt/keycloak/providers/
+COPY --from=theme /theme/dist_keycloak/keycloak-ratio-theme.jar /opt/keycloak/providers/
+RUN /opt/keycloak/bin/kc.sh build \
+      --db=postgres \
+      --health-enabled=true \
+      --metrics-enabled=true
+
+# 4. Optimized runtime image.
+FROM quay.io/keycloak/keycloak:${KEYCLOAK_VERSION}
+COPY --from=builder /opt/keycloak/ /opt/keycloak/
+ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
