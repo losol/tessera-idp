@@ -35,11 +35,11 @@ docker build -t ghcr.io/losol/tessera-idp:dev .
 Build context is the repo root; the [Dockerfile](Dockerfile) reaches both
 `plugins/tessera-otp/` and `themes/ratio/`.
 
-## Checks
+## CI
 
 The Keycloak version must match between the [Dockerfile](Dockerfile) (runtime
 image) and [plugins/tessera-otp/pom.xml](plugins/tessera-otp/pom.xml) (compile
-target). A guard enforces it — run it locally or from CI:
+target). Both workflows run a guard that fails on drift; run it locally too:
 
 ```bash
 scripts/check-keycloak-version.sh

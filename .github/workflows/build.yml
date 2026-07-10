@@ -1,0 +1,68 @@
+# Tag-driven release. Push a semver tag and this builds and publishes the image:
+#
+#   git tag v1.0.0 && git push origin v1.0.0
+#   -> ghcr.io/losol/tessera-idp:1.0.0, :1.0, :latest   (linux/amd64 + linux/arm64)
+#
+# Actions are referenced by major tag; Renovate pins them to digests
+# (helpers:pinGitHubActionDigests in renovate.json).
+name: Build & publish image
+
+on:
+  push:
+    tags: ["v*"]
+
+# Don't cancel a publish midway.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write # push to GHCR via GITHUB_TOKEN
+
+env:
+  IMAGE: ghcr.io/losol/tessera-idp
+
+jobs:
+  release:
+    name: Build & push (multi-arch)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Cheap insurance: never publish an image whose compile/runtime Keycloak
+      # versions disagree.
+      - name: Keycloak version guard
+        run: scripts/check-keycloak-version.sh
+
+      - uses: docker/setup-qemu-action@v3 # arm64 emulation
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Derives tags/labels from the git tag. `latest` is added automatically for
+      # a (non-prerelease) semver tag via the default flavor=latest=auto.
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
