@@ -3,9 +3,13 @@
 #
 # Guard: the Keycloak version must be identical across every build file.
 #
-# It lives in two ecosystems that cannot share a variable:
-#   - Dockerfile                    ARG KEYCLOAK_VERSION=<v>   (builder + runtime image)
-#   - plugins/tessera-otp/pom.xml   <keycloak.version>         (compile-time provided deps)
+# It lives in three places that cannot share a variable:
+#   - Dockerfile                    FROM quay.io/keycloak/keycloak:<v>  (builder stage)
+#   - Dockerfile                    FROM quay.io/keycloak/keycloak:<v>  (runtime stage)
+#   - plugins/tessera-otp/pom.xml   <keycloak.version>  (compile-time provided deps)
+#
+# The tag is deliberately written out in both FROM lines (no ARG): Dependabot
+# cannot resolve ARG-in-FROM, but updates identical image:tag lines together.
 #
 # If they drift, the provider compiles against one Keycloak but runs on another —
 # a NoSuchMethodError at login time instead of a build failure. This script turns
@@ -23,15 +27,20 @@ fail() { printf 'check-keycloak-version: ERROR: %s\n' "$1" >&2; exit 1; }
 [ -f "$dockerfile" ] || fail "Dockerfile not found at $dockerfile"
 [ -f "$pom" ]        || fail "pom.xml not found at $pom"
 
-docker_ver="$(grep -E '^ARG[[:space:]]+KEYCLOAK_VERSION=' "$dockerfile" \
-  | head -1 | cut -d= -f2 | tr -d '[:space:]')"
+docker_vers="$(grep -E '^FROM[[:space:]]+quay\.io/keycloak/keycloak:' "$dockerfile" \
+  | sed -E 's|^FROM[[:space:]]+quay\.io/keycloak/keycloak:([^[:space:]@]+).*|\1|')"
 pom_ver="$(grep -oE '<keycloak\.version>[^<]+</keycloak\.version>' "$pom" \
   | head -1 | sed -E 's|.*<keycloak\.version>([^<]+)</keycloak\.version>.*|\1|')"
 
-[ -n "$docker_ver" ] || fail "could not find 'ARG KEYCLOAK_VERSION=' in Dockerfile"
-[ -n "$pom_ver" ]    || fail "could not find '<keycloak.version>' in pom.xml"
+[ -n "$docker_vers" ] || fail "could not find 'FROM quay.io/keycloak/keycloak:<tag>' in Dockerfile"
+[ -n "$pom_ver" ]     || fail "could not find '<keycloak.version>' in pom.xml"
 
-printf 'Dockerfile  KEYCLOAK_VERSION  : %s\n' "$docker_ver"
+if [ "$(printf '%s\n' "$docker_vers" | sort -u | wc -l | tr -d '[:space:]')" != "1" ]; then
+  fail "Dockerfile FROM lines disagree on the Keycloak tag: $(printf '%s ' $docker_vers)"
+fi
+docker_ver="$(printf '%s\n' "$docker_vers" | head -1)"
+
+printf 'Dockerfile  keycloak FROM tag : %s\n' "$docker_ver"
 printf 'pom.xml     keycloak.version  : %s\n' "$pom_ver"
 
 if [ "$docker_ver" != "$pom_ver" ]; then

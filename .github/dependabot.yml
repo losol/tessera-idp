@@ -1,0 +1,50 @@
+version: 2
+
+updates:
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: daily
+    cooldown:
+      default-days: 7
+    labels: [dependencies]
+    commit-message:
+      prefix: chore
+      include: scope
+
+  - package-ecosystem: maven
+    directory: /plugins/tessera-otp
+    schedule:
+      interval: daily
+    cooldown:
+      default-days: 7
+    labels: [dependencies]
+    commit-message:
+      prefix: chore
+      include: scope
+
+  - package-ecosystem: npm
+    directory: /themes/ratio
+    schedule:
+      interval: daily
+    cooldown:
+      default-days: 7
+    labels: [dependencies]
+    commit-message:
+      prefix: chore
+      include: scope
+    # keycloakify pulls a wide dep tree; one PR per minor/patch drowns the repo.
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 14
+    labels: [dependencies]
+    commit-message:
+      prefix: chore
+      include: scope
