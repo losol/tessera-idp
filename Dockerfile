@@ -31,7 +31,7 @@ RUN npm run build-keycloak-theme
 # 3. Bake providers into Keycloak and run the build step.
 # db/health/metrics are build-time options — bake them so the optimized image
 # can start with --optimized (the operator requires health for its probes).
-FROM quay.io/keycloak/keycloak:26.6.4 AS builder
+FROM quay.io/keycloak/keycloak:26.7.0 AS builder
 COPY --from=plugin /build/target/keycloak-tessera-otp-*.jar /opt/keycloak/providers/
 COPY --from=theme /theme/dist_keycloak/keycloak-ratio-theme.jar /opt/keycloak/providers/
 RUN /opt/keycloak/bin/kc.sh build \
@@ -40,6 +40,6 @@ RUN /opt/keycloak/bin/kc.sh build \
     --metrics-enabled=true
 
 # 4. Optimized runtime image.
-FROM quay.io/keycloak/keycloak:26.6.4
+FROM quay.io/keycloak/keycloak:26.7.0
 COPY --from=builder /opt/keycloak/ /opt/keycloak/
 ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
