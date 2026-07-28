@@ -36,7 +36,7 @@ pom_ver="$(grep -oE '<keycloak\.version>[^<]+</keycloak\.version>' "$pom" \
 [ -n "$pom_ver" ]     || fail "could not find '<keycloak.version>' in pom.xml"
 
 if [ "$(printf '%s\n' "$docker_vers" | sort -u | wc -l | tr -d '[:space:]')" != "1" ]; then
-  fail "Dockerfile FROM lines disagree on the Keycloak tag: $(printf '%s ' $docker_vers)"
+  fail "Dockerfile FROM lines disagree on the Keycloak tag: $(printf '%s\n' \"$docker_vers\" | tr '\n' ' ')"
 fi
 docker_ver="$(printf '%s\n' "$docker_vers" | head -1)"
 
