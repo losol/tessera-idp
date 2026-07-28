@@ -8,7 +8,7 @@
 # `kc.sh build` runs — the image is "optimized" and needs no runtime mounts.
 
 # 1. Build the tessera-otp provider JAR from source.
-FROM maven:3.9-eclipse-temurin-17 AS plugin
+FROM maven:3-eclipse-temurin-26 AS plugin
 WORKDIR /build
 COPY plugins/tessera-otp/pom.xml .
 COPY plugins/tessera-otp/src ./src
