@@ -15,8 +15,22 @@
 # a NoSuchMethodError at login time instead of a build failure. This script turns
 # that drift back into a build failure. Run it locally or from CI, at any cwd.
 #
+# With --print the checks still run, but the only thing written to stdout is the
+# agreed-upon version — so release tooling can quote it without re-implementing
+# the parsing this script exists to own.
+#
 # Exit: 0 = all versions match · 1 = mismatch, or a version could not be located.
 set -euo pipefail
+
+print_only=false
+if [ "$#" -gt 1 ]; then
+  printf 'check-keycloak-version: ERROR: too many arguments (only --print)\n' >&2; exit 1
+fi
+case "${1:-}" in
+  --print) print_only=true ;;
+  "")      ;;
+  *)       printf 'check-keycloak-version: ERROR: unknown argument %s (only --print)\n' "$1" >&2; exit 1 ;;
+esac
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 dockerfile="$repo_root/Dockerfile"
@@ -36,15 +50,21 @@ pom_ver="$(grep -oE '<keycloak\.version>[^<]+</keycloak\.version>' "$pom" \
 [ -n "$pom_ver" ]     || fail "could not find '<keycloak.version>' in pom.xml"
 
 if [ "$(printf '%s\n' "$docker_vers" | sort -u | wc -l | tr -d '[:space:]')" != "1" ]; then
-  fail "Dockerfile FROM lines disagree on the Keycloak tag: $(printf '%s\n' \"$docker_vers\" | tr '\n' ' ')"
+  fail "Dockerfile FROM lines disagree on the Keycloak tag: ${docker_vers//$'\n'/ }"
 fi
 docker_ver="$(printf '%s\n' "$docker_vers" | head -1)"
 
-printf 'Dockerfile  keycloak FROM tag : %s\n' "$docker_ver"
-printf 'pom.xml     keycloak.version  : %s\n' "$pom_ver"
+if [ "$print_only" = false ]; then
+  printf 'Dockerfile  keycloak FROM tag : %s\n' "$docker_ver"
+  printf 'pom.xml     keycloak.version  : %s\n' "$pom_ver"
+fi
 
 if [ "$docker_ver" != "$pom_ver" ]; then
   fail "Keycloak version mismatch ($docker_ver != $pom_ver) — align Dockerfile and pom.xml."
 fi
 
-printf 'OK — Keycloak version is consistent (%s).\n' "$docker_ver"
+if [ "$print_only" = true ]; then
+  printf '%s\n' "$docker_ver"
+else
+  printf 'OK — Keycloak version is consistent (%s).\n' "$docker_ver"
+fi

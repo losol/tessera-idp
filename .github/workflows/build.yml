@@ -1,7 +1,9 @@
-# Tag-driven release. Push a semver tag and this builds and publishes the image:
+# Tag-driven release. Push a semver tag and this builds and publishes the image,
+# then opens the matching GitHub Release:
 #
-#   git tag v1.0.0 && git push origin v1.0.0
-#   -> ghcr.io/losol/tessera-idp:1.0.0, :1.0, :latest   (linux/amd64 + linux/arm64)
+#   git tag v0.1.0 && git push origin v0.1.0
+#   -> ghcr.io/losol/tessera-idp:0.1.0, :0.1, :latest   (linux/amd64 + linux/arm64)
+#   -> https://github.com/losol/tessera-idp/releases/tag/v0.1.0
 #
 # Actions are pinned to commit SHAs (with the version in a trailing comment);
 # Dependabot keeps the pins updated (.github/dependabot.yml).
@@ -17,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: write # create the GitHub Release
   packages: write # push to GHCR via GITHUB_TOKEN
 
 env:
@@ -57,6 +59,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
 
       - name: Build & push
+        id: build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
@@ -66,3 +69,21 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Last, so a failed build never leaves a Release pointing at nothing.
+      # GitHub writes the body from merged PRs (grouped per .github/release.yml);
+      # --notes prepends the two facts it cannot know: which Keycloak is baked in,
+      # and the digest to pin against.
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          kc="$(scripts/check-keycloak-version.sh --print)"
+          args=(--verify-tag --generate-notes)
+          # A semver prerelease (v0.1.0-rc.1) must not become the "Latest" release.
+          case "$TAG" in *-*) args+=(--prerelease) ;; esac
+          gh release create "$TAG" "${args[@]}" --notes "$(
+            printf "Keycloak **%s**\n\n\`\`\`\n%s@%s\n\`\`\`\n" "$kc" "$IMAGE" "$DIGEST"
+          )"
