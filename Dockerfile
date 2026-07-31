@@ -18,7 +18,7 @@ RUN mvn -q -B package
 
 # 2. Build the Ratio login theme (keycloakify → theme JAR).
 # keycloakify packages the JAR with Maven, so install it (+ a JDK) here.
-FROM node:24 AS theme
+FROM node:25 AS theme
 RUN apt-get update \
     && apt-get install -y --no-install-recommends maven \
     && rm -rf /var/lib/apt/lists/*
