@@ -32,7 +32,7 @@ RUN npm run build-keycloak-theme
 # db/health/metrics are build-time options — bake them so the optimized image
 # can start with --optimized (the operator requires health for its probes).
 FROM quay.io/keycloak/keycloak:26.7.0 AS builder
-COPY --from=plugin /build/target/keycloak-tessera-otp-*.jar /opt/keycloak/providers/
+COPY --from=plugin /build/target/keycloak-tessera-otp.jar /opt/keycloak/providers/
 COPY --from=theme /theme/dist_keycloak/keycloak-ratio-theme.jar /opt/keycloak/providers/
 RUN /opt/keycloak/bin/kc.sh build \
     --db=postgres \

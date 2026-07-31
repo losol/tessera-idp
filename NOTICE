@@ -28,7 +28,7 @@ ALTCHA widget — registers the <altcha-widget> custom element, bundled
     https://altcha.org/  ·  https://github.com/altcha-org/altcha
 
 ================================================================================
-Plugin — plugins/tessera-otp  (keycloak-tessera-otp-*.jar, shaded)
+Plugin — plugins/tessera-otp  (keycloak-tessera-otp.jar, shaded)
 ================================================================================
 
 The provider JAR is built with the Maven Shade plugin and embeds:
