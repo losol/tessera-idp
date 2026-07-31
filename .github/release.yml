@@ -1,0 +1,20 @@
+# Shapes the notes GitHub generates for a release (`gh release create
+# --generate-notes` in .github/workflows/build.yml).
+#
+# Grouping is by PR label, so Dependabot's `labels: [dependencies]` in
+# dependabot.yml is what keeps the bumps out of the main list. If that label is
+# ever removed from the repo, Dependabot silently stops applying it and every
+# bump lands under "Changes" instead — noisy, but not wrong.
+#
+# The bumps are grouped rather than excluded on purpose: the Keycloak version
+# and the base-image digest are part of what ships, so a reader auditing a
+# release should be able to see them.
+changelog:
+  categories:
+    - title: Changes
+      labels: ["*"]
+      exclude:
+        labels: [dependencies]
+
+    - title: Dependencies
+      labels: [dependencies]
