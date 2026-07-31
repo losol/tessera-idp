@@ -8,7 +8,7 @@ Passwordless one-time-code authenticator for Keycloak. User enters email, receiv
 mvn package
 ```
 
-Produces `target/keycloak-tessera-otp-1.0.0.jar`.
+Produces `target/keycloak-tessera-otp.jar`.
 
 ## Deploy
 
@@ -16,7 +16,7 @@ Upload JAR as a ConfigMap and mount in Keycloak:
 
 ```bash
 kubectl create configmap keycloak-tessera-otp-jar -n kursinord-keycloak-prod \
-  --from-file=keycloak-tessera-otp.jar=target/keycloak-tessera-otp-1.0.0.jar \
+  --from-file=target/keycloak-tessera-otp.jar \
   --dry-run=client -o yaml | kubectl apply -f -
 kubectl delete pod -n kursinord-keycloak-prod keycloak-0
 ```

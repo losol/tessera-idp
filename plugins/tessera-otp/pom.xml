@@ -94,7 +94,7 @@
     </dependencies>
 
     <build>
-        <finalName>${project.artifactId}-${project.version}</finalName>
+        <finalName>${project.artifactId}</finalName>
         <plugins>
             <!-- Run the JUnit 5 tests (older surefire defaults predate JUnit 5). -->
             <plugin>
@@ -120,8 +120,8 @@
                         </goals>
                         <configuration>
                             <!-- Replace the thin JAR with the shaded one so the
-                                 Dockerfile's keycloak-tessera-otp-*.jar copy
-                                 picks up the version that contains altcha. -->
+                                 Dockerfile's keycloak-tessera-otp.jar copy picks
+                                 up the build that contains altcha. -->
                             <shadedArtifactAttached>false</shadedArtifactAttached>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <artifactSet>
