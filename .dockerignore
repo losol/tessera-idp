@@ -1,0 +1,33 @@
+# tessera-idp · SPDX-License-Identifier: MPL-2.0
+#
+# Keep the build context to sources. Everything listed here is either
+# regenerated inside the image or has no business in it.
+#
+# node_modules is the load-bearing entry, not just a size optimisation: the
+# theme stage runs `npm ci` and then copies themes/ratio/ over the result, so a
+# node_modules from the host would overwrite Linux binaries with whatever the
+# host platform installed. On macOS that leaves rollup with only its darwin
+# build and the theme fails to compile — a failure that never reaches CI,
+# because a fresh checkout there has nothing to copy.
+
+# --- Dependencies & build output (regenerated in-image) ---
+**/node_modules
+**/target
+**/dist
+**/dist_keycloak
+
+# --- Test artifacts ---
+**/test-results
+**/playwright-report
+**/.playwright
+
+# --- VCS & CI (not read by any build stage) ---
+.git
+.gitignore
+.github
+
+# --- Editors / OS ---
+**/.DS_Store
+**/.idea
+**/.vscode
+**/*.swp
