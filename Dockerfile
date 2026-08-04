@@ -14,7 +14,14 @@ COPY plugins/tessera-otp/pom.xml .
 COPY plugins/tessera-otp/src ./src
 # Tests run here on purpose: AltchaAndroidJsonTest is the build-time guard that
 # altcha still works against the shaded android-json org.json implementation.
-RUN mvn -q -B package
+#
+# Maven's resolver already retries a failed download 3x, but only for the status
+# codes in retryHandler.serviceUnavailable — which defaults to 429,503. Maven
+# Central answered 502 during the v0.1.0 release build, so the download was not
+# retried and ~30 min of emulated multi-arch build died on a momentary blip.
+# Widening the set to the whole "try again later" family costs nothing when
+# Central is healthy: a real 502 on every attempt still fails the build.
+RUN mvn -q -B -Daether.connector.http.retryHandler.serviceUnavailable=429,502,503,504 package
 
 # 2. Build the Ratio login theme (keycloakify → theme JAR).
 # keycloakify packages the JAR with Maven, so install it (+ a JDK) here.
