@@ -15,6 +15,15 @@ without cluttering the repo root.
 ghcr.io/losol/tessera-idp:<tag>
 ```
 
+The package is public, so it pulls anonymously — no `docker login`, and no
+`imagePullSecret` on a cluster that runs it through the Keycloak Operator:
+
+```bash
+docker pull ghcr.io/losol/tessera-idp:latest
+```
+
+Published for `linux/amd64` and `linux/arm64`.
+
 ## Releasing
 
 Releases are **tag-driven**. Push a semver tag and the [build workflow](.github/workflows/build.yml)
