@@ -11,8 +11,8 @@
   },
   "license": "MPL-2.0",
   "dependencies": {
-    "@eventuras/ratio-ui": "^2.17.2",
-    "altcha": "^3.2.1",
+    "@eventuras/ratio-ui": "^2.17.3",
+    "altcha": "^3.2.2",
     "keycloakify": "^11.15.14",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
