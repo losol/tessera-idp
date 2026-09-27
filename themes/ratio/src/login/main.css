@@ -391,3 +391,25 @@
 .ratio-login__password-toggle:hover {
     color: var(--text, var(--color-neutral-900, #1c1917));
 }
+
+/*
+ * The lead identity provider, when the client's `tessera.login-methods` puts
+ * one first: filled like the primary submit button so it reads as the
+ * recommended way in. The other providers keep the outlined style.
+ */
+.ratio-login__social-btn--lead {
+    color: var(--text-on-primary, #ffffff);
+    background: var(--primary, #2563eb);
+    border-color: var(--primary, #2563eb);
+}
+
+.ratio-login__social-btn--lead:hover {
+    background: var(--primary, #2563eb);
+    border-color: var(--primary, #2563eb);
+    opacity: 0.92;
+}
+
+/* Providers offered below a leading email form. */
+.ratio-login__alternatives {
+    margin-top: 1.25rem;
+}
