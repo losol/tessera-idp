@@ -63,3 +63,51 @@ for (const pageId of PAGE_IDS) {
         });
     }
 }
+
+// Per-client login methods on the Tessera OTP start page, driven by the
+// client attribute `tessera.login-methods` (smoke/entry.tsx `?methods=`). The
+// mock realm offers Vipps and GitHub. `lead` is the element that must come
+// first and be emphasised; `absent` must not be rendered at all.
+const LOGIN_METHOD_CASES: {
+    methods: string | null;
+    providers: string[];
+    lead: string | null;
+    emailForm: "open" | "link" | "none";
+}[] = [
+    // Attribute absent → unchanged default (doktorinord): all providers, no lead.
+    { methods: null, providers: ["vipps", "github"], lead: null, emailForm: "link" },
+    { methods: "github", providers: ["github"], lead: "#social-github", emailForm: "none" },
+    { methods: "otp", providers: [], lead: "#kc-email-form", emailForm: "open" },
+    { methods: "otp,github", providers: ["github"], lead: "#kc-email-form", emailForm: "open" },
+    { methods: "github, otp", providers: ["github"], lead: "#social-github", emailForm: "link" },
+    { methods: "github,vipps", providers: ["github", "vipps"], lead: "#social-github", emailForm: "none" },
+    // Unknown entries are ignored; nothing renderable falls back to the default.
+    { methods: "passkey,otp", providers: [], lead: "#kc-email-form", emailForm: "open" },
+    { methods: "passkey", providers: ["vipps", "github"], lead: null, emailForm: "link" }
+];
+
+for (const c of LOGIN_METHOD_CASES) {
+    test(`login-tessera-otp-start.ftl offers methods=${c.methods ?? "(absent)"}`, async ({ page }) => {
+        const query = new URLSearchParams({ pageId: "login-tessera-otp-start.ftl" });
+        if (c.methods !== null) query.set("methods", c.methods);
+        await page.goto(`/smoke/index.html?${query.toString()}`);
+        await expect(page.locator(".ratio-login__card")).toBeVisible({ timeout: 10000 });
+
+        const rendered = await page
+            .locator(".ratio-login__social-btn")
+            .evaluateAll(els => els.map(el => el.id.replace(/^social-/, "")));
+        expect(rendered, "providers, in order").toEqual(c.providers);
+
+        const leads = page.locator(".ratio-login__social-btn--lead");
+        await expect(leads).toHaveCount(c.lead?.startsWith("#social-") ? 1 : 0);
+
+        await expect(page.locator("#kc-email-form")).toHaveCount(c.emailForm === "open" ? 1 : 0);
+        await expect(page.locator(".ratio-login__textlink")).toHaveCount(c.emailForm === "link" ? 1 : 0);
+
+        if (c.lead !== null) {
+            // The lead comes first in the form wrapper.
+            const first = page.locator("#kc-form-wrapper > :first-child");
+            await expect(first.locator(c.lead).or(first.and(page.locator(c.lead)))).toHaveCount(1);
+        }
+    });
+}
