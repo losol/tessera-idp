@@ -81,4 +81,48 @@ class AltchaAndroidJsonTest {
                 challenge.parameters().salt(),
                 parsed.challenge().parameters().salt());
     }
+
+    /**
+     * The authenticator's {@code altcha-cost} only reaches the challenge; the
+     * verifier is never told the cost. That is safe only because the cost is
+     * part of the HMAC-signed parameters: a solution verifies against whatever
+     * cost it was issued with, and a payload claiming a cheaper cost is
+     * rejected.
+     */
+    @Test
+    void costIsSignedIntoTheChallenge() throws Exception {
+        String algorithm = "PBKDF2/SHA-256";
+        Altcha.KeyDerivationFunction kdf = Altcha.kdf(algorithm);
+
+        Altcha.Challenge challenge = Altcha.createChallenge(
+                new Altcha.CreateChallengeOptions()
+                        .algorithm(algorithm)
+                        .cost(200)
+                        .hmacSignatureSecret(SECRET)
+                        .expiresInSeconds(300));
+        Altcha.Solution solution = Altcha.solveChallenge(challenge, kdf);
+        assertNotNull(solution, "challenge should be solvable");
+
+        JSONObject challengeJson = new JSONObject(challenge.toJson());
+        assertEquals(200, challengeJson.getJSONObject("parameters").getInt("cost"));
+
+        // Verifies with only the algorithm's KDF, as TesseraOtpAuthenticator does.
+        assertTrue(Altcha.verifySolution(payload(challengeJson, solution), SECRET, kdf).verified());
+
+        // Rewriting the signed cost breaks the signature.
+        challengeJson.getJSONObject("parameters").put("cost", 1);
+        assertFalse(Altcha.verifySolution(payload(challengeJson, solution), SECRET, kdf).verified());
+    }
+
+    private static String payload(JSONObject challengeJson, Altcha.Solution solution) throws Exception {
+        return Base64.getEncoder().encodeToString(
+                new JSONObject()
+                        .put("challenge", challengeJson)
+                        .put("solution", new JSONObject()
+                                .put("counter", solution.counter())
+                                .put("derivedKey", solution.derivedKey())
+                                .put("time", solution.time()))
+                        .toString()
+                        .getBytes(StandardCharsets.UTF_8));
+    }
 }
