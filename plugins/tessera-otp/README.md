@@ -27,9 +27,11 @@ Provider ID: `tessera-otp`
 
 | Setting | Default | Description |
 |---|---|---|
-| code-length | 4 | Characters in OTP code |
+| code-length | 6 | Characters in OTP code |
 | code-lifetime | 300 | Code validity in seconds |
-| code-alphabet | `23456789ABCDEFGHJKLMNPQRSTUVWXYZ` | Characters used (excludes 0, 1, I, O) |
+| code-alphabet | `0123456789` | Characters used to generate the code |
+| altcha-hmac-key | *(blank)* | HMAC secret for the ALTCHA proof-of-work on the email step. Blank disables the captcha entirely |
+| altcha-cost | 5000 | PBKDF2 iterations per ALTCHA attempt. Higher is more work for bots and a slower solve on slow phones; applies to challenges issued after the change |
 
 ## Flow
 

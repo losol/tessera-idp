@@ -21,18 +21,17 @@
  * real is a per-client browser flow on the Keycloak side.
  */
 
+import type { KcContext } from "./KcContext";
+
 export const LOGIN_METHODS_ATTRIBUTE = "tessera.login-methods";
 
 /** The reserved entry for the email one-time-code form. */
 export const OTP_METHOD = "otp";
 
-export type Provider = {
-    loginUrl: string;
-    alias: string;
-    providerId: string;
-    displayName: string;
-    iconClasses?: string;
-};
+/** An identity provider as the start page receives it (see KcContext.ts). */
+export type Provider = NonNullable<
+    Extract<KcContext, { pageId: "login-tessera-otp-start.ftl" }>["social"]["providers"]
+>[number];
 
 export type LoginMethod = { kind: "otp" } | { kind: "idp"; provider: Provider };
 

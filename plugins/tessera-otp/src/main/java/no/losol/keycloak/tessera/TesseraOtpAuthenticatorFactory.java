@@ -45,7 +45,15 @@ public class TesseraOtpAuthenticatorFactory implements AuthenticatorFactory {
                     "HMAC secret enabling the ALTCHA proof-of-work captcha on the email step. "
                             + "Leave blank to disable the captcha entirely.",
                     ProviderConfigProperty.PASSWORD,
-                    "")
+                    ""),
+            new ProviderConfigProperty(
+                    "altcha-cost",
+                    "ALTCHA Cost",
+                    "PBKDF2 iterations per ALTCHA proof-of-work attempt. Higher means more work "
+                            + "for bots, and a slower solve on slow phones. Only used when the "
+                            + "HMAC key is set.",
+                    ProviderConfigProperty.STRING_TYPE,
+                    String.valueOf(TesseraOtpAuthenticator.DEFAULT_ALTCHA_COST))
     );
 
     @Override

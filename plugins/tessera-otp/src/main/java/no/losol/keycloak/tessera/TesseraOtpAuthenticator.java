@@ -105,9 +105,12 @@ public class TesseraOtpAuthenticator implements Authenticator {
 
     // PBKDF2-based proof-of-work tuning. The cost is the number of hash
     // iterations the browser must brute-force; ~5000 is a few hundred ms of work
-    // — enough friction for bots, invisible to humans.
+    // — enough friction for bots, invisible to humans. Configurable per realm
+    // (`altcha-cost`); the cost is signed into each challenge, so changing it
+    // only affects challenges issued afterwards.
     private static final String ALTCHA_ALGORITHM = "PBKDF2/SHA-256";
-    private static final int ALTCHA_COST = 5000;
+    private static final String CONFIG_ALTCHA_COST = "altcha-cost";
+    static final int DEFAULT_ALTCHA_COST = 5000;
     // Challenge validity. A solution older than this is rejected as expired.
     private static final int ALTCHA_EXPIRES_SECONDS = 600;
     // Replay-guard TTL: a solved challenge id is remembered at least this long
@@ -394,6 +397,12 @@ public class TesseraOtpAuthenticator implements Authenticator {
 
     // --- ALTCHA helpers ----------------------------------------------------
 
+    /** The configured proof-of-work cost; a missing or non-positive value uses the default. */
+    private int altchaCost(AuthenticationFlowContext context) {
+        int cost = getConfigInt(context, CONFIG_ALTCHA_COST, DEFAULT_ALTCHA_COST);
+        return cost > 0 ? cost : DEFAULT_ALTCHA_COST;
+    }
+
     /** ALTCHA is enabled only when a non-blank HMAC key is configured. */
     private boolean isAltchaEnabled(AuthenticationFlowContext context) {
         return !getConfigString(context, CONFIG_ALTCHA_KEY, "").isBlank();
@@ -415,7 +424,7 @@ public class TesseraOtpAuthenticator implements Authenticator {
             Altcha.Challenge challenge = Altcha.createChallenge(
                     new Altcha.CreateChallengeOptions()
                             .algorithm(ALTCHA_ALGORITHM)
-                            .cost(ALTCHA_COST)
+                            .cost(altchaCost(context))
                             .hmacSignatureSecret(key)
                             .expiresInSeconds(ALTCHA_EXPIRES_SECONDS));
             form.setAttribute(FORM_ATTR_ALTCHA_CHALLENGE, challenge.toJson());
