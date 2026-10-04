@@ -56,7 +56,7 @@ RUN npm run build-keycloak-theme
 # Tracing is build-time too. It gives every request an OpenTelemetry trace id,
 # which prefixes the request's log lines and is shown on the error page as the
 # support reference (see themes/ratio/src/login/pages/Error.tsx).
-FROM quay.io/keycloak/keycloak:26.7.4 AS builder
+FROM quay.io/keycloak/keycloak:26.8.0 AS builder
 COPY --from=plugin /build/target/keycloak-tessera-otp.jar /opt/keycloak/providers/
 COPY --from=theme /theme/dist_keycloak/keycloak-ratio-theme.jar /opt/keycloak/providers/
 RUN /opt/keycloak/bin/kc.sh build \
@@ -66,7 +66,7 @@ RUN /opt/keycloak/bin/kc.sh build \
     --tracing-enabled=true
 
 # 4. Optimized runtime image.
-FROM quay.io/keycloak/keycloak:26.7.4
+FROM quay.io/keycloak/keycloak:26.8.0
 COPY --from=builder /opt/keycloak/ /opt/keycloak/
 # Runtime defaults; a deployment can override either.
 # - Sample no traces: trace ids are still generated, logged and shown on error
