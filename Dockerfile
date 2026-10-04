@@ -53,15 +53,27 @@ RUN npm run build-keycloak-theme
 # 3. Bake providers into Keycloak and run the build step.
 # db/health/metrics are build-time options — bake them so the optimized image
 # can start with --optimized (the operator requires health for its probes).
+# Tracing is build-time too. It gives every request an OpenTelemetry trace id,
+# which prefixes the request's log lines and is shown on the error page as the
+# support reference (see themes/ratio/src/login/pages/Error.tsx).
 FROM quay.io/keycloak/keycloak:26.7.4 AS builder
 COPY --from=plugin /build/target/keycloak-tessera-otp.jar /opt/keycloak/providers/
 COPY --from=theme /theme/dist_keycloak/keycloak-ratio-theme.jar /opt/keycloak/providers/
 RUN /opt/keycloak/bin/kc.sh build \
     --db=postgres \
     --health-enabled=true \
-    --metrics-enabled=true
+    --metrics-enabled=true \
+    --tracing-enabled=true
 
 # 4. Optimized runtime image.
 FROM quay.io/keycloak/keycloak:26.7.4
 COPY --from=builder /opt/keycloak/ /opt/keycloak/
+# Runtime defaults; a deployment can override either.
+# - Sample no traces: trace ids are still generated, logged and shown on error
+#   pages, but nothing is exported, so no OTLP collector is needed. To export,
+#   set KC_TRACING_SAMPLER_RATIO (e.g. 1.0) and KC_TRACING_ENDPOINT.
+# - Use the ratio theme where Keycloak has no realm to take a theme from
+#   (e.g. an unknown realm), instead of Keycloak's stock error page.
+ENV KC_TRACING_SAMPLER_RATIO=0.0 \
+    KC_SPI_THEME__DEFAULT=ratio
 ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]

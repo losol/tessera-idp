@@ -32,7 +32,9 @@ const kcContextExtensionPerPage: KcContextExtensionPerPage = {
     },
     "login-tessera-otp-code.ftl": {
         sentToEmail: "user@example.com"
-    }
+    },
+    // No traceId by default: Keycloak only sets it when tracing is enabled.
+    "error.ftl": {}
 };
 
 export const { getKcContextMock } = createGetKcContextMock({

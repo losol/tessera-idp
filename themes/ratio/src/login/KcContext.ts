@@ -43,6 +43,14 @@ export type KcContextExtensionPerPage = {
         // confirm they typed it correctly. Rendered as escaped React text.
         sentToEmail?: string;
     };
+    "error.ftl": {
+        // OpenTelemetry trace id of the request that failed. Keycloak sets it
+        // on pages built by its login forms provider, and only when tracing
+        // is enabled (`--tracing-enabled`). The same id prefixes the
+        // request's log lines, so it is the reference support looks up.
+        // Absent on pages from Keycloak's generic error handler (no realm).
+        traceId?: string;
+    };
 };
 
 export type KcContext = ExtendKcContext<KcContextExtension, KcContextExtensionPerPage>;

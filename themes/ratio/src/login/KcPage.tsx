@@ -15,6 +15,7 @@ const UserProfileFormFields = lazy(
 const Login = lazy(() => import("./pages/Login"));
 const LoginTesseraOtpStart = lazy(() => import("./pages/LoginTesseraOtpStart"));
 const LoginTesseraOtpCode = lazy(() => import("./pages/LoginTesseraOtpCode"));
+const ErrorPage = lazy(() => import("./pages/Error"));
 
 // Ratio's base CSS hides <html> (opacity: 0) until a data-theme is set; that
 // attribute also activates the light/dark design tokens (--primary, --text, …).
@@ -58,6 +59,16 @@ export default function KcPage(props: { kcContext: KcContext }) {
                     case "login-tessera-otp-code.ftl":
                         return (
                             <LoginTesseraOtpCode
+                                kcContext={kcContext}
+                                i18n={i18n}
+                                classes={classes}
+                                Template={Template}
+                                doUseDefaultCss={false}
+                            />
+                        );
+                    case "error.ftl":
+                        return (
+                            <ErrorPage
                                 kcContext={kcContext}
                                 i18n={i18n}
                                 classes={classes}

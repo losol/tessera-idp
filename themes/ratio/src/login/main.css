@@ -53,6 +53,10 @@
     width: 100%;
     max-width: 26rem;
     padding: 2rem;
+    /* Ratio's Card is `flex: 1 1 auto`; inside the full-height page column
+       that stretches it to the viewport and defeats the vertical centering.
+       Size the card to its content instead. */
+    flex: 0 0 auto;
 }
 
 .ratio-login__header {
@@ -412,4 +416,62 @@
 /* Providers offered below a leading email form. */
 .ratio-login__alternatives {
     margin-top: 1.25rem;
+}
+
+/* Error page (pages/Error.tsx): message, way back, and a support reference. */
+.ratio-login__error {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.ratio-login__error-message {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+.ratio-login__error-reference {
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-1, #e7e5e4);
+    border-radius: var(--radius-md, 0.5rem);
+    background-color: var(--color-neutral-50, #fafaf9);
+    font-size: 0.8125rem;
+    color: var(--text-muted, var(--color-neutral-600, #57534e));
+}
+
+.ratio-login__error-reference dl {
+    display: grid;
+    gap: 0.25rem;
+    margin: 0;
+}
+
+.ratio-login__error-reference dl > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 0.5rem;
+}
+
+.ratio-login__error-reference dt {
+    font-weight: 600;
+}
+
+.ratio-login__error-reference dd {
+    margin: 0;
+    /* A 32-char trace id must wrap rather than widen the card on phones. */
+    overflow-wrap: anywhere;
+}
+
+.ratio-login__error-reference code {
+    font-size: 0.8125rem;
+    user-select: all;
+}
+
+.ratio-login__error-hint {
+    margin: 0.5rem 0 0.25rem;
+}
+
+.ratio-login__error-reference .ratio-login__textlink {
+    padding: 0;
+    font-size: 0.8125rem;
 }

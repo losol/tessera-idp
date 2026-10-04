@@ -7,7 +7,7 @@
  */
 import { test, expect } from "@playwright/test";
 
-const PAGE_IDS = ["login.ftl", "login-tessera-otp-start.ftl", "login-tessera-otp-code.ftl", "login-update-profile.ftl"];
+const PAGE_IDS = ["login.ftl", "login-tessera-otp-start.ftl", "login-tessera-otp-code.ftl", "login-update-profile.ftl", "error.ftl"];
 
 // `null` = realm default locale; "nb" exercises Keycloak's Norwegian Bokmål
 // tag, which keycloakify's built-in default set does not know (it uses "no").
@@ -108,6 +108,25 @@ for (const c of LOGIN_METHOD_CASES) {
             // The lead comes first in the form wrapper.
             const first = page.locator("#kc-form-wrapper > :first-child");
             await expect(first.locator(c.lead).or(first.and(page.locator(c.lead)))).toHaveCount(1);
+        }
+    });
+}
+
+// Error page: the time is always shown; the trace id only when Keycloak set
+// one (tracing enabled), and then it is the reference support looks up.
+for (const traceId of [null, "4c2aec90375e5ef6c3ecc0a3ac7d87fe"]) {
+    test(`error.ftl shows a support reference (traceId ${traceId === null ? "absent" : "present"})`, async ({ page }) => {
+        const query = new URLSearchParams({ pageId: "error.ftl" });
+        if (traceId !== null) query.set("traceId", traceId);
+        await page.goto(`/smoke/index.html?${query.toString()}`);
+        await expect(page.locator(".ratio-login__card")).toBeVisible({ timeout: 10000 });
+
+        const reference = page.locator(".ratio-login__error-reference");
+        await expect(reference).toContainText(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC/);
+        if (traceId === null) {
+            await expect(page.locator("#traceId")).toHaveCount(0);
+        } else {
+            await expect(page.locator("#traceId")).toHaveText(traceId);
         }
     });
 }

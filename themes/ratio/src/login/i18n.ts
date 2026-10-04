@@ -29,7 +29,13 @@ const norwegianTesseraOtpMessages = {
     tesseraOtpUseCode: "Logg inn med engangspassord",
     tesseraOtpOr: "eller",
     altchaRequired: "Vennligst fullfør verifiseringen.",
-    altchaFailed: "Verifiseringen mislyktes. Prøv igjen."
+    altchaFailed: "Verifiseringen mislyktes. Prøv igjen.",
+    ratioErrorReference: "Referanse",
+    ratioErrorTime: "Tidspunkt",
+    ratioErrorSupportHint: "Kontakter du support, ta med referansen og tidspunktet.",
+    ratioErrorSupportHintTimeOnly: "Kontakter du support, ta med tidspunktet.",
+    ratioErrorCopy: "Kopier",
+    ratioErrorCopied: "Kopiert"
 };
 
 /**
@@ -91,7 +97,13 @@ const { useI18n, ofTypeI18n } = i18nBuilder
             tesseraOtpUseCode: "Log in with a one-time code",
             tesseraOtpOr: "or",
             altchaRequired: "Please complete the verification challenge.",
-            altchaFailed: "Verification failed. Please try again."
+            altchaFailed: "Verification failed. Please try again.",
+            ratioErrorReference: "Reference",
+            ratioErrorTime: "Time",
+            ratioErrorSupportHint: "If you contact support, include the reference and the time.",
+            ratioErrorSupportHintTimeOnly: "If you contact support, include the time.",
+            ratioErrorCopy: "Copy",
+            ratioErrorCopied: "Copied"
         },
         no: norwegianTesseraOtpMessages,
         nb: norwegianTesseraOtpMessages
