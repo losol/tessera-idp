@@ -44,6 +44,22 @@ suffix (`v0.2.0-rc.1`) is marked as such and does not move `latest`.
 Version numbers describe *this image*, not the Keycloak inside it — read the
 release notes for that.
 
+## Runtime defaults
+
+The image sets two runtime options as environment variables; a deployment can
+override either.
+
+| Variable | Default | Why |
+| --- | --- | --- |
+| `KC_TRACING_SAMPLER_RATIO` | `0.0` | Tracing is built in (`--tracing-enabled`) so every request gets an OpenTelemetry trace id. The id prefixes the request's log lines and the login theme's error page shows it as the support reference. At `0.0` nothing is exported, so no collector is needed; to export traces, raise the ratio and set `KC_TRACING_ENDPOINT`. |
+| `KC_SPI_THEME__DEFAULT` | `ratio` | Pages Keycloak renders without a realm (e.g. an unknown realm) use the ratio theme instead of Keycloak's stock page. |
+
+To find the log lines for a reference someone reports from the error page:
+
+```bash
+kubectl logs -n <namespace> <keycloak-pod> | grep 'traceId=<reference>'
+```
+
 ## Local build
 
 ```bash

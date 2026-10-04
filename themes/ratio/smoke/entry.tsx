@@ -10,6 +10,9 @@
  * An optional `?methods=` param sets the client attribute
  * `tessera.login-methods` (e.g. `methods=otp,github`), so each per-client
  * layout of the Tessera OTP start page can be rendered.
+ *
+ * An optional `?traceId=` param sets the error page's trace id, as Keycloak
+ * does when tracing is enabled.
  */
 import { createRoot } from "react-dom/client";
 import { StrictMode } from "react";
@@ -24,6 +27,7 @@ const params = new URLSearchParams(window.location.search);
 const pageId = (params.get("pageId") ?? "login.ftl") as KcContext["pageId"];
 const locale = params.get("locale");
 const methods = params.get("methods");
+const traceId = params.get("traceId");
 
 const overrides: DeepPartial<KcContext> = {
     ...(locale !== null && {
@@ -38,7 +42,8 @@ const overrides: DeepPartial<KcContext> = {
     }),
     ...(methods !== null && {
         client: { attributes: { [LOGIN_METHODS_ATTRIBUTE]: methods } }
-    })
+    }),
+    ...(traceId !== null && { traceId })
 };
 
 const kcContext = getKcContextMock({ pageId, overrides });
