@@ -12,7 +12,7 @@
   "license": "MPL-2.0",
   "dependencies": {
     "@eventuras/ratio-ui": "^2.27.0",
-    "altcha": "^3.2.3",
+    "altcha": "^3.2.4",
     "keycloakify": "^11.16.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
