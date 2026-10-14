@@ -18,7 +18,7 @@
 ARG MAVEN_RETRY_CODES=429,502,503,504
 
 # 1. Build the tessera-otp provider JAR from source.
-FROM maven:3-eclipse-temurin-26 AS plugin
+FROM maven:3-eclipse-temurin-27 AS plugin
 ARG MAVEN_RETRY_CODES
 WORKDIR /build
 COPY plugins/tessera-otp/pom.xml .
@@ -33,7 +33,7 @@ RUN mvn -q -B -Daether.connector.http.retryHandler.serviceUnavailable="$MAVEN_RE
 # than installed with apt, which ships Maven 3.8.7 — old enough to still resolve
 # through Wagon, where the retry setting below is silently ignored. A bare stage
 # (no RUN) so buildx can still fetch it in parallel with the rest of the build.
-FROM maven:3-eclipse-temurin-26 AS maven-dist
+FROM maven:3-eclipse-temurin-27 AS maven-dist
 
 FROM node:24 AS theme
 ARG MAVEN_RETRY_CODES
