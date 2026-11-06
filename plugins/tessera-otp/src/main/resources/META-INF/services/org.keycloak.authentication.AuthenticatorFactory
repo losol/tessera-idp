@@ -1,1 +1,3 @@
 no.losol.keycloak.tessera.TesseraOtpAuthenticatorFactory
+no.losol.keycloak.tessera.broker.TesseraBrokerLinkingFactory
+no.losol.keycloak.tessera.broker.TesseraBrokerPolicyFactory
