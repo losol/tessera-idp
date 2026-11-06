@@ -1,0 +1,22 @@
+Apple Identity Provider for Keycloak — klausbetz and contributors
+https://github.com/klausbetz/apple-identity-provider-keycloak
+Apache-2.0; see apple-identity-provider-LICENSE in this directory.
+
+Five Java sources in at/klausbetz/provider are vendored from tag
+1.17.0, commit 665011f7ef021850ce5e7a92e33a8bf969c9a29f:
+AppleIdentityProvider.java, AppleIdentityProviderConfig.java,
+AppleIdentityProviderEndpoint.java, AppleUserRepresentation.java,
+TokenExchangeParams.java.
+
+Compatibility change in AppleIdentityProvider.java (marked in its header):
+removed obsolete @Override annotation on exchangeExternalTokenV1Impl, since
+Keycloak 26.8 replaced that SPI. The other four files are unchanged. Both old
+and current exchange methods are blocked by the Tessera wrapper.
+
+The upstream factory and mappers are deliberately excluded. Only the Tessera
+factory is registered. Tessera modifications live in a separate package.
+
+Release artifact (not used by the build): apple-identity-provider-1.17.0.jar
+SHA256 4091dee2a1ec9e0771bef4bd46005197d86b0a2b1f25198c41738476b1d102bb
+Published 2026-01-15; downloaded and verified 2026-11-06.
+Source is the build input; no runtime download or unpublished Maven dependency.

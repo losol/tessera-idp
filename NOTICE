@@ -48,3 +48,12 @@ org.json:json to keep the distribution free of the non-free "JSON License".
 --------------------------------------------------------------------------------
 Keycloak (org.keycloak:*) is a provided (non-bundled) dependency.
     SPDX-License-Identifier: Apache-2.0  ·  https://www.keycloak.org/
+
+Apple Identity Provider for Keycloak — klausbetz and contributors
+    Five Java sources from 1.17.0, commit
+    665011f7ef021850ce5e7a92e33a8bf969c9a29f, compiled into the provider JAR.
+    SPDX-License-Identifier: Apache-2.0
+    https://github.com/klausbetz/apple-identity-provider-keycloak
+    License and provenance: META-INF/licenses/apple-identity-provider-* in JAR.
+    Only Tessera's hardened wrapper is registered, not the upstream factory.
+    Compatibility change: removed the obsolete exchange SPI @Override annotation.
