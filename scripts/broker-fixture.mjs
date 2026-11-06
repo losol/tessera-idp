@@ -12,6 +12,9 @@ const codes = new Map();
 const mail = [];
 const seen = new Set();
 const nextScenario = new Map();
+const lastResponse = new Map();
+const choices = new Map();
+const appResults = new Map();
 const escape = s => String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;');
 const base = 'http://127.0.0.1:18089';
 const cases = {
@@ -29,6 +32,9 @@ const cases = {
   strict: { sub: 'google-strict', email: 'strict@gmail.com' },
   'apple-first': { sub: 'apple-new', email: 'relay@privaterelay.appleid.com', email_verified: 'true' },
   'apple-return': { sub: 'apple-new', email: null },
+  'apple-changed-email': { sub: 'apple-new', email: 'existing@gmail.com' },
+  'apple-malformed-profile': { sub: 'apple-malformed-profile', email: 'malformed@privaterelay.appleid.com' },
+  ambiguous: { sub: 'ambiguous-subject', email: 'ambiguous@gmail.com' },
   'apple-private': { sub: 'apple-private', email: 'relay@private.icloud.com' },
   'apple-different': { sub: 'apple-different', email: 'different@privaterelay.appleid.com' },
 };
@@ -40,6 +46,15 @@ http.createServer(async (req, res) => {
   const send = (status, content, type = 'text/html') => { res.writeHead(status, { 'Content-Type': type, 'Cache-Control': 'no-store' }); res.end(content); };
   if (url.pathname === '/jwks') return send(200, JSON.stringify({ keys: [jwk] }), 'application/json');
   if (url.pathname === '/health') return send(200, 'ready', 'text/plain');
+  if (url.pathname === '/status') return send(200, JSON.stringify({ choices: choices.get(url.searchParams.get('provider')) || 0 }), 'application/json');
+  if (url.pathname === '/app/result') return send(200, JSON.stringify(appResults.get(url.searchParams.get('state')) || {}), 'application/json');
+  if (url.pathname.startsWith('/replay/')) {
+    const saved = lastResponse.get(url.pathname.split('/')[2]);
+    if (!saved) return send(404, 'No fixture response to replay');
+    if (saved.formPost) return send(200, page(`<form method="post" action="${escape(saved.redirect)}">${[...saved.params].map(([name,value]) => `<input type="hidden" name="${escape(name)}" value="${escape(value)}">`).join('')}</form><script>document.querySelector('form').submit()</script>`));
+    const redirect = new URL(saved.redirect); redirect.search = saved.params.toString();
+    res.writeHead(302, { Location: redirect.href }); return res.end();
+  }
   if (url.pathname === '/control') {
     if (url.searchParams.has('reset_profile')) seen.delete(url.searchParams.get('reset_profile'));
     nextScenario.set(url.searchParams.get('provider'), url.searchParams.get('scenario'));
@@ -59,18 +74,34 @@ http.createServer(async (req, res) => {
     const links = [...new Set(decoded.match(/https?:\/\/[^\s<>"']+/g) ?? [])].filter(link => link.includes('/login-actions/'));
     return send(200, page(`<h1>Fixture mail</h1>${links.map(link => `<p><a href="${escape(link.replaceAll('&amp;', '&'))}">Confirm email link</a></p>`).join('')}<pre>${escape(decoded)}</pre>`));
   }
-  if (url.pathname === '/app/callback') return send(200, page(`<h1>${url.searchParams.has('error') ? 'Login failed' : 'Login complete'}</h1><p>Local fixture callback reached.</p>`));
+  if (url.pathname === '/app/callback') {
+    if (url.searchParams.has('error')) return send(200, page('<h1>Login failed</h1>'));
+    try {
+      const issuer = new URL(url.searchParams.get('iss'));
+      if (issuer.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(issuer.hostname) || !issuer.pathname.startsWith('/realms/')) throw new Error('Loopback issuer required');
+      const response = await fetch(issuer.href + '/protocol/openid-connect/token', { method: 'POST',
+        body: new URLSearchParams({ grant_type: 'authorization_code', client_id: 'fixture', code: url.searchParams.get('code'), redirect_uri: base + '/app/callback' }) });
+      if (!response.ok) throw new Error('Fixture code exchange failed');
+      const tokens = await response.json();
+      const userinfo = await fetch(issuer.href + '/protocol/openid-connect/userinfo', { headers: { Authorization: 'Bearer ' + tokens.access_token } });
+      if (!userinfo.ok) throw new Error('Fixture userinfo failed');
+      const user = await userinfo.json();
+      appResults.set(url.searchParams.get('state'), { sub: user.sub, email: user.email });
+      return send(200, page('<h1>Login complete</h1><p>Local authorization code exchanged; account identity verified.</p>'));
+    } catch { return send(500, page('<h1>Fixture code exchange failed</h1>')); }
+  }
   if (url.pathname.endsWith('/authorize')) {
     const provider = url.pathname.split('/')[1];
     const automatic = url.searchParams.get('fixture_scenario') || nextScenario.get(provider);
     nextScenario.delete(provider);
     if (automatic) return send(200, page(`<h1>Automatic fixture consent: ${escape(automatic)}</h1><form method="post" action="/choose"><input type="hidden" name="request" value="${escape(url.href)}"><input type="hidden" name="scenario" value="${escape(automatic)}"><button>Continue</button></form><script>document.querySelector('form').submit()</script>`));
-    return send(200, page(`<h1>${provider} fixture consent</h1><form method="post" action="/choose"><input type="hidden" name="request" value="${escape(url.href)}">${[...Object.keys(cases).filter(x => provider === 'apple' ? x.startsWith('apple-') || ['link-existing', 'unverified', 'conflict', 'protected', 'strict'].includes(x) : !x.startsWith('apple-')), 'bad-audience', 'bad-issuer', 'bad-nonce', 'missing-nonce', 'missing-exp', 'bad-signature', 'expired', 'missing-state', 'bad-state', 'token-error', 'cancel', 'failure'].map(name => `<p><button name="scenario" value="${name}">${name}</button></p>`).join('')}</form>`));
+    return send(200, page(`<h1>${provider} fixture consent</h1><form method="post" action="/choose"><input type="hidden" name="request" value="${escape(url.href)}">${[...Object.keys(cases).filter(x => provider === 'apple' ? x.startsWith('apple-') || ['link-existing', 'unverified', 'conflict', 'protected', 'strict', 'ambiguous'].includes(x) : !x.startsWith('apple-')), 'bad-audience', 'bad-issuer', 'bad-nonce', 'missing-nonce', 'missing-exp', 'bad-signature', 'expired', 'missing-state', 'bad-state', 'token-error', 'cancel', 'user-cancelled', 'failure'].map(name => `<p><button name="scenario" value="${name}">${name}</button></p>`).join('')}</form>`));
   }
   if (url.pathname === '/choose') {
     const form = await body(req);
     const original = new URL(form.get('request'));
     const provider = original.pathname.split('/')[1];
+    choices.set(provider, (choices.get(provider) || 0) + 1);
     const scenario = form.get('scenario');
     const redirect = new URL(original.searchParams.get('redirect_uri'));
     // The fixture is never an open redirect to arbitrary remote websites.
@@ -78,7 +109,7 @@ http.createServer(async (req, res) => {
     const response = new URLSearchParams({ state: original.searchParams.get('state') ?? '' });
     if (scenario === 'missing-state') response.delete('state');
     if (scenario === 'bad-state') response.set('state', 'wrong-state');
-    if (scenario === 'cancel' || scenario === 'failure') response.set('error', scenario === 'cancel' ? 'access_denied' : 'server_error');
+    if (['cancel', 'user-cancelled', 'failure'].includes(scenario)) response.set('error', scenario === 'cancel' ? 'access_denied' : scenario === 'user-cancelled' ? 'user_cancelled_authorize' : 'server_error');
     else {
       const code = randomUUID();
       codes.set(code, { original, provider, scenario, profile: cases[scenario] ?? { sub: `${provider}-${scenario}`, email: 'negative@gmail.com' } });
@@ -86,6 +117,8 @@ http.createServer(async (req, res) => {
       if (provider === 'apple' && !seen.has(codes.get(code).profile.sub)) response.set('user', JSON.stringify({ name: { firstName: 'Fixture', lastName: 'Person' }, email: codes.get(code).profile.email }));
       seen.add(codes.get(code).profile.sub);
     }
+    if (scenario === 'apple-malformed-profile') response.set('user', '{broken');
+    lastResponse.set(provider, { redirect: redirect.href, params: response, formPost: original.searchParams.get('response_mode') === 'form_post' });
     if (original.searchParams.get('response_mode') === 'form_post') return send(200, page(`<form id="response" method="post" action="${escape(redirect.href)}">${[...response].map(([name,value]) => `<input type="hidden" name="${escape(name)}" value="${escape(value)}">`).join('')}<button>Continue to Tessera</button></form><script>document.querySelector('form').submit()</script>`));
     redirect.search = response.toString(); res.writeHead(302, { Location: redirect.href }); return res.end();
   }

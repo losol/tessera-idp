@@ -21,6 +21,12 @@ factory_path="${factory//.//}"
 mkdir -p "$fixture_dir/$(dirname "$factory_path")" "$fixture_dir/META-INF/services"
 cp plugins/tessera-otp/target/test-classes/"${factory_path}"*.class "$fixture_dir/$(dirname "$factory_path")/"
 printf '%s\n' "$factory" > "$fixture_dir/META-INF/services/org.keycloak.broker.social.SocialIdentityProviderFactory"
+if test -n "${BROKER_EXTRA_FIXTURE_FACTORY:-}"; then
+    extra_path="${BROKER_EXTRA_FIXTURE_FACTORY//.//}"
+    mkdir -p "$fixture_dir/$(dirname "$extra_path")"
+    cp plugins/tessera-otp/target/test-classes/"${extra_path}"*.class "$fixture_dir/$(dirname "$extra_path")/"
+    printf '%s\n' "$BROKER_EXTRA_FIXTURE_FACTORY" >> "$fixture_dir/META-INF/services/org.keycloak.broker.social.SocialIdentityProviderFactory"
+fi
 "$JAVA_HOME/bin/jar" --create --file "$runtime_dir/providers/fixture-only.jar" -C "$fixture_dir" .
 rm -rf "$fixture_dir"
 mkdir -p "$runtime_dir/data/import"

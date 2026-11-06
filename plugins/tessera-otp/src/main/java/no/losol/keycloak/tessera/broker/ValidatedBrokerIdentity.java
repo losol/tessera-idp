@@ -24,6 +24,7 @@ public record ValidatedBrokerIdentity(String issuer, String subject, String emai
         Object value = context.getContextData().get(OIDCIdentityProvider.VALIDATED_ID_TOKEN);
         if (!(value instanceof JsonWebToken token)
                 || !issuer.equals(token.getIssuer())
+                || token.getExp() == null || token.getExp() <= 0
                 || token.getSubject() == null || token.getSubject().isBlank()
                 || !token.getSubject().equals(context.getId())) {
             throw new IdentityBrokerException("Missing or inconsistent validated broker identity");

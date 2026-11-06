@@ -12,7 +12,8 @@ final class BrokerPolicySupport {
 
     static void configuration(BrokeredIdentityContext broker) {
         var idp = broker.getIdpConfig();
-        if (idp.getSyncMode() != IdentityProviderSyncMode.IMPORT
+        String requiredAlias = "google".equals(idp.getProviderId()) ? "google" : "apple";
+        if (!requiredAlias.equals(idp.getAlias()) || idp.getSyncMode() != IdentityProviderSyncMode.IMPORT
                 || Boolean.TRUE.equals(idp.isTrustEmail())
                 || !"true".equals(idp.getConfig().get("validateSignature"))
                 || "true".equals(idp.getConfig().get("disableNonce"))) {
@@ -35,6 +36,8 @@ final class BrokerPolicySupport {
                 user == null ? null : user.getFirstAttribute(BrokerLinkingPolicy.SECURITY),
                 // Client note is server-set and survives first-broker resetFlow.
                 auth.getClientNote(BrokerLinkingPolicy.SECURITY))
+                || (user != null && user.getAttributeStream(BrokerLinkingPolicy.SECURITY).anyMatch(
+                        value -> BrokerLinkingPolicy.strict(value)))
                 // A requested assurance level/action is not satisfied by this email flow.
                 || auth.getClientNote("acr_values") != null
                 || auth.getClientNote("kc_action") != null;

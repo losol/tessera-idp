@@ -54,6 +54,22 @@ returns through its actual callback, first-login, post-login and required-action
 paths. This proves browser broker behavior, **not** an interactive Google button
 click. No browser claims are trusted by production code.
 
+The runner uses a synthetic loopback admin to isolate independent login sessions
+and declare `citizen_id`/`tessera.broker.security` as admin-only profile attributes.
+It compares before/after persisted account and provider-link state, including
+citizen attributes, and exchanges the callback authorization code at local
+Keycloak to verify the authenticated user ID. It waits for the fixture consent
+counter followed by AO's load wait before asserting a new case; repeated Apple
+form-post callbacks can legitimately have the same URL. Tokens, credential data
+and authorization codes are never printed.
+The admin helper refuses remote origins and non-fixture realm names. The launcher
+defaults are `fixture-admin`/`fixture-admin`; an existing disposable setup can use
+`BROKER_ADMIN_USERNAME`/`BROKER_ADMIN_PASSWORD`. Do not use live credentials.
+
+The dependent Apple suite can set `BROKER_EXTRA_FIXTURE_FACTORY` to include the
+Google test factory alongside its own factory for native cross-provider linking
+tests. Both remain in the separate fixture-only JAR.
+
 For targeted runs:
 
 ```bash
