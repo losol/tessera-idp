@@ -92,6 +92,15 @@ class BrokerLinkingPolicyTest {
                 () -> ValidatedBrokerIdentity.from(broker("oidc", "a@gmail.com", true, null), true));
     }
 
+    @Test void missingOrZeroExpiryCannotMeanUnlimitedValidity() {
+        var context = broker("google", "a@gmail.com", true, null);
+        var token = (JsonWebToken) context.getContextData().get(OIDCIdentityProvider.VALIDATED_ID_TOKEN);
+        token.exp(null);
+        assertThrows(IdentityBrokerException.class, () -> ValidatedBrokerIdentity.from(context, true));
+        token.exp(0L);
+        assertThrows(IdentityBrokerException.class, () -> ValidatedBrokerIdentity.from(context, false));
+    }
+
     static BrokeredIdentityContext broker(String provider, String email, Object verified, String hd) {
         var config = new IdentityProviderModel();
         config.setProviderId(provider);
@@ -104,6 +113,7 @@ class BrokerLinkingPolicyTest {
         var token = new JsonWebToken();
         token.issuer(provider.equals("google") ? ValidatedBrokerIdentity.GOOGLE_ISSUER : ValidatedBrokerIdentity.APPLE_ISSUER);
         token.subject("stable-subject");
+        token.exp(System.currentTimeMillis() / 1000 + 300);
         if (email != null) token.getOtherClaims().put("email", email);
         if (verified != null) token.getOtherClaims().put("email_verified", verified);
         if (hd != null) token.getOtherClaims().put("hd", hd);

@@ -69,8 +69,6 @@ docker build -t ghcr.io/losol/tessera-idp:dev .
 Build context is the repo root; the [Dockerfile](Dockerfile) reaches both
 `plugins/tessera-otp/` and `themes/ratio/`.
 
-## CI
-
 ## Social login
 
 Google uses the built-in Keycloak broker and existing Ratio login-methods support.

@@ -20,11 +20,19 @@ import org.keycloak.models.UserModel;
 /** Sole REQUIRED execution in the Tessera first broker login flow. */
 public final class TesseraBrokerLinking extends AbstractIdpAuthenticator {
     private static final String PENDING_USER = "tessera.broker.pending-user";
-    private final IdpEmailVerificationAuthenticator verification = new IdpEmailVerificationAuthenticator();
+    private final IdpEmailVerificationAuthenticator verification;
+
+    public TesseraBrokerLinking() { this(new IdpEmailVerificationAuthenticator()); }
+    TesseraBrokerLinking(IdpEmailVerificationAuthenticator verification) { this.verification = verification; }
 
     @Override
     protected void authenticateImpl(AuthenticationFlowContext context, SerializedBrokeredIdentityContext serialized,
                                     BrokeredIdentityContext broker) {
+        process(context, serialized, broker, false);
+    }
+
+    private void process(AuthenticationFlowContext context, SerializedBrokeredIdentityContext serialized,
+                         BrokeredIdentityContext broker, boolean resend) {
         try {
             BrokerPolicySupport.configuration(broker);
             var identity = ValidatedBrokerIdentity.from(broker, true);
@@ -71,7 +79,8 @@ public final class TesseraBrokerLinking extends AbstractIdpAuthenticator {
                 // exact account, email, provider alias, subject and auth session.
                 auth.setAuthNote(EXISTING_USER_INFO,
                         new ExistingUserInfo(user.getId(), UserModel.EMAIL, user.getEmail()).serialize());
-                verification.authenticate(context);
+                if (resend) verification.action(context);
+                else verification.authenticate(context);
                 return;
             }
             // Existing accounts are selected as-is: no profile, email, citizen
@@ -93,7 +102,7 @@ public final class TesseraBrokerLinking extends AbstractIdpAuthenticator {
                               BrokeredIdentityContext broker) {
         // Only the signed native verification handler may authorize continuation;
         // a posted email/profile/submit value never chooses the linked account.
-        authenticateImpl(context, serialized, broker);
+        process(context, serialized, broker, true);
     }
     @Override public boolean requiresUser() { return false; }
     @Override public boolean configuredFor(KeycloakSession session, RealmModel realm, UserModel user) { return true; }
