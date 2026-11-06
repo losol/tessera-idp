@@ -20,6 +20,18 @@ public final class AppleFixtureIdentityProviderFactory extends
             @Override public void prepareClientSecret(String clientId) {
                 // Test-only shared broker accepts a synthetic secret; no Apple key.
             }
+            @Override public org.keycloak.broker.provider.BrokeredIdentityContext sendTokenRequest(
+                    String code, String clientId, String profile,
+                    org.keycloak.sessions.AuthenticationSessionModel authenticationSession,
+                    String redirectUri) throws java.io.IOException {
+                if ("true".equals(model.getConfig().get("fixtureRequireCrossSite"))
+                        && !"cross-site".equals(session.getContext().getRequestHeaders()
+                                .getHeaderString("Sec-Fetch-Site"))) {
+                    throw new org.keycloak.broker.provider.IdentityBrokerException(
+                            "Fixture requires a genuinely cross-site browser POST");
+                }
+                return super.sendTokenRequest(code, clientId, profile, authenticationSession, redirectUri);
+            }
         };
         String base = System.getProperty("tessera.fixture.base-url", "http://127.0.0.1:18089");
         String scenario = model.getConfig().get("fixtureScenario");

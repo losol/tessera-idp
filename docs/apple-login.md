@@ -250,6 +250,26 @@ broker, requests Keycloak's native `idp_link:apple` action and verifies the
 stops there: Continue/Cancel interactions and completed different-address
 linking remain acceptance checks requiring working browser input.
 
+To finish that blocked check manually in the disposable dual-provider realm:
+
+1. Run `--native-link-boundary` to authenticate the target and stop on
+   **Linking Apple**. Click **Continue** with working browser input, then choose
+   `apple-different` on the synthetic Apple consent page.
+2. Verify the existing local user ID, original email and `citizen_id` remain
+   unchanged and exactly one Apple link with subject `apple-different` is added
+   to that authenticated account. Confirm the RP authenticates that same user.
+3. Repeat with a fresh unlinked fixture target and cancel at confirmation or
+   Apple consent; verify its account, citizen data and links remain unchanged.
+   Repeat against any configured stronger account policy using its normal
+   authentication; do not remove required actions or credentials to pass.
+
+For a genuinely cross-site run, keep the synthetic Apple page at
+`http://127.0.0.1:18089` and address Keycloak as `http://localhost:18086` (a
+distinct site), with `BROKER_KEYCLOAK_URL=http://localhost:18086` and
+`--cross-site`. The test-only factory then requires the browser's actual
+`Sec-Fetch-Site: cross-site` header on the POST before code exchange. Different
+ports on `127.0.0.1` alone are only different origins and are insufficient.
+
 On 2026-11-06 the clean canonical launcher and Keycloak 26.8.2 completed
 45 Maven tests (21 Apple-specific) and all **26 Apple broker/runtime scenarios**
 in this runner. Positive RP code-exchange/userinfo results identified the
@@ -257,6 +277,10 @@ expected original local account; rejected callbacks preserved full account,
 credential-type, required-action, link and citizen-attribute snapshots.
 The native confirmation boundary also passed without account mutation.
 These results used shared dependency `4152dd7` and synthetic keys/accounts.
+The complete 26-case matrix also passed on a second clean runtime with Apple
+on `http://127.0.0.1:18089` and Keycloak on `http://localhost:18086`, with the
+test-only cross-site request-header guard enabled. RP identity and full
+account/link preservation assertions passed across these distinct sites.
 Interactive provider/keyboard/OTP and completed native linking remain blocked
 by AO 0.14.9 input dispatch; live Apple consent and relay delivery are unproven.
 

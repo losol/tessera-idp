@@ -61,7 +61,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--cases', help='Comma-separated subset; defaults to the broker/runtime matrix')
     parser.add_argument('--native-link-boundary', action='store_true', help='Requires both TEST factories; stops at native confirmation')
+    parser.add_argument('--cross-site', action='store_true', help='Require localhost Keycloak and 127.0.0.1 Apple fixture as distinct sites')
     args = parser.parse_args()
+    if args.cross_site:
+        assert urllib.parse.urlparse(browser.BASE).hostname == 'localhost', 'Cross-site run requires Keycloak on localhost'
+        assert urllib.parse.urlparse(browser.FIXTURE).hostname == '127.0.0.1', 'Synthetic Apple must be on a different site'
     positive = ['apple-first', 'apple-return', 'apple-changed-email', 'apple-private', 'link-existing']
     negative = ['unverified', 'conflict', 'protected', 'strict', 'ambiguous', 'bad-audience', 'bad-issuer',
                 'bad-nonce', 'missing-nonce', 'missing-exp', 'bad-signature', 'expired',
@@ -74,6 +78,9 @@ def main():
     accounts = browser.FixtureAdmin()
     accounts.configure_profile()
     browser.ADMIN = accounts
+    apple = accounts.request('/identity-provider/instances/apple')
+    apple['config']['fixtureRequireCrossSite'] = str(args.cross_site).lower()
+    accounts.request('/identity-provider/instances/apple', method='PUT', payload=apple)
     for case in cases:
         if case in ('apple-first', 'apple-private'):
             subject = 'apple-new' if case == 'apple-first' else 'apple-private'
@@ -135,6 +142,9 @@ def main():
             print(json.dumps({'scenario': case, 'state_assertions': 'PASS', 'users_before': len(before),
                               'users_after': len(after), 'scope': 'automatic synthetic consent; real Keycloak and AO navigation'}), flush=True)
 
+    if args.cross_site:
+        print(json.dumps({'cross_site': 'PASS', 'cases': len(cases), 'apple_site': browser.FIXTURE,
+                          'keycloak_site': browser.BASE, 'browser_header': 'Sec-Fetch-Site: cross-site required before code exchange'}), flush=True)
     if args.native_link_boundary:
         assert os.environ.get('BROKER_EXTRA_FIXTURE_FACTORY') == 'no.losol.keycloak.tessera.fixture.FixtureGoogleIdentityProviderFactory', 'Start the disposable runtime with both TEST factories first'
         providers = accounts.request('/identity-provider/instances')
