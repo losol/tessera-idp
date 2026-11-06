@@ -16,6 +16,7 @@ def flow(alias, execution):
 
 def user(name, email, verified=True, **extra):
     return {'username': name, 'email': email, 'enabled': True, 'emailVerified': verified,
+            'firstName': 'Existing', 'lastName': 'Person',
             'attributes': {'citizen_id': ['citizen-' + name]}, **extra}
 
 clients = []
