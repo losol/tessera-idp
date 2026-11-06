@@ -30,7 +30,7 @@ fi
 "$JAVA_HOME/bin/jar" --create --file "$runtime_dir/providers/fixture-only.jar" -C "$fixture_dir" .
 rm -rf "$fixture_dir"
 mkdir -p "$runtime_dir/data/import"
-python3 scripts/broker-realm.py --provider "${BROKER_PROVIDER:-google}" --realm "${BROKER_REALM:-broker-fixture}" > "$runtime_dir/data/import/fixture-realm.json"
+python3 scripts/broker-realm.py --provider "${BROKER_PROVIDER:-google}" --realm "${BROKER_REALM:-broker-fixture}" > "$runtime_dir/data/import/${BROKER_REALM:-broker-fixture}-realm.json"
 echo "Disposable runtime: $runtime_dir"
 echo 'Local test admin: fixture-admin / fixture-admin (synthetic, loopback only)'
 export KC_BOOTSTRAP_ADMIN_USERNAME=fixture-admin KC_BOOTSTRAP_ADMIN_PASSWORD=fixture-admin
