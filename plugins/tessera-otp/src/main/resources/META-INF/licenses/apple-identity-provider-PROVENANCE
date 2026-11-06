@@ -10,7 +10,10 @@ TokenExchangeParams.java.
 
 Compatibility change in AppleIdentityProvider.java (marked in its header):
 removed obsolete @Override annotation on exchangeExternalTokenV1Impl, since
-Keycloak 26.8 replaced that SPI. The other four files are unchanged. Both old
+Keycloak 26.8 replaced that SPI. AppleIdentityProviderEndpoint.java adds
+@jakarta.ws.rs.ext.Provider for Quarkus REST subresource discovery and @Vetoed
+to preserve broker-owned (not CDI-injected) request-specific construction; the upstream
+empty META-INF/beans.xml is also retained. The other three files are unchanged. Both old
 and current exchange methods are blocked by the Tessera wrapper.
 
 The upstream factory and mappers are deliberately excluded. Only the Tessera

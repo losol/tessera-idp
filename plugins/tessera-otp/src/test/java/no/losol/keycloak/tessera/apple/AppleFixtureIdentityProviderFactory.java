@@ -22,7 +22,10 @@ public final class AppleFixtureIdentityProviderFactory extends
             }
         };
         String base = System.getProperty("tessera.fixture.base-url", "http://127.0.0.1:18089");
-        provider.getConfig().setAuthorizationUrl(base + "/apple/authorize?response_mode=form_post");
+        String scenario = model.getConfig().get("fixtureScenario");
+        String automatic = scenario == null ? "" : "&fixture_scenario="
+                + java.net.URLEncoder.encode(scenario, java.nio.charset.StandardCharsets.UTF_8);
+        provider.getConfig().setAuthorizationUrl(base + "/apple/authorize?response_mode=form_post" + automatic);
         provider.getConfig().setTokenUrl(base + "/apple/token");
         provider.getConfig().setJwksUrl(base + "/jwks");
         // The fixture verifies client authentication independently. A synthetic JWT

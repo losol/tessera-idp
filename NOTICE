@@ -57,3 +57,5 @@ Apple Identity Provider for Keycloak — klausbetz and contributors
     License and provenance: META-INF/licenses/apple-identity-provider-* in JAR.
     Only Tessera's hardened wrapper is registered, not the upstream factory.
     Compatibility change: removed the obsolete exchange SPI @Override annotation.
+    Callback resource adds @Provider with upstream bean metadata for Quarkus REST.
+    @Vetoed preserves request-specific construction by the broker.

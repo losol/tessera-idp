@@ -1,3 +1,7 @@
+// Tessera compatibility change, 2026-11-06: @Provider makes this dynamic
+// callback discoverable by Keycloak 26.8 Quarkus REST (with META-INF/beans.xml).
+// @Vetoed keeps lifecycle under the broker instead of CDI constructor injection.
+// Original: klausbetz/apple-identity-provider-keycloak 1.17.0, Apache-2.0.
 package at.klausbetz.provider;
 
 import jakarta.ws.rs.FormParam;
@@ -22,6 +26,8 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 
 import static at.klausbetz.provider.AppleIdentityProvider.OAUTH2_PARAMETER_CODE;
 
+@jakarta.ws.rs.ext.Provider
+@jakarta.enterprise.inject.Vetoed
 public class AppleIdentityProviderEndpoint {
 
     protected static final Logger logger = Logger.getLogger(AppleIdentityProviderEndpoint.class);

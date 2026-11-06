@@ -9,10 +9,12 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.Signature;
+import java.security.spec.ECGenParameterSpec;
 import java.time.Instant;
 import java.net.URLDecoder;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Base64;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,6 +28,8 @@ import org.keycloak.common.util.Base64Url;
 import org.keycloak.crypto.AsymmetricSignatureVerifierContext;
 import org.keycloak.crypto.KeyWrapper;
 import org.keycloak.crypto.SignatureProvider;
+import org.keycloak.crypto.ECDSASignatureVerifierContext;
+import org.keycloak.common.crypto.CryptoIntegration;
 import org.keycloak.jose.jws.JWSInput;
 import org.keycloak.models.IdentityProviderModel;
 import org.keycloak.models.IdentityProviderSyncMode;
@@ -33,6 +37,7 @@ import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
 import org.keycloak.representations.IDToken;
+import org.keycloak.representations.JsonWebToken;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.util.JsonSerialization;
 import no.losol.keycloak.tessera.broker.ValidatedBrokerIdentity;
@@ -44,6 +49,7 @@ class TesseraAppleIdentityProviderTest {
     private TestApple provider;
 
     @BeforeAll static void keys() throws Exception {
+        CryptoIntegration.init(TesseraAppleIdentityProviderTest.class.getClassLoader());
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
         generator.initialize(2048);
         signingKey = generator.generateKeyPair();
@@ -223,6 +229,35 @@ class TesseraAppleIdentityProviderTest {
         assertEquals("openid name email", parameters.get("scope"));
         assertNotNull(parameters.get("nonce"));
         verify(authSession).setClientNote("BROKER_NONCE", parameters.get("nonce"));
+    }
+
+    @Test void signsClientSecretAndRotatesSyntheticP8WithoutMutatingStoredKey() throws Exception {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("EC");
+        generator.initialize(new ECGenParameterSpec("secp256r1"));
+        for (String keyId : new String[] {"original-key", "replacement-key"}) {
+            KeyPair pair = generator.generateKeyPair();
+            String p8 = "-----BEGIN PRIVATE KEY-----\n"
+                    + Base64.getMimeEncoder().encodeToString(pair.getPrivate().getEncoded())
+                    + "\n-----END PRIVATE KEY-----";
+            IdentityProviderModel stored = model();
+            stored.getConfig().putAll(Map.of("clientSecret", p8, "teamId", "fixture-team", "keyId", keyId));
+            TesseraAppleIdentityProvider signer = new TesseraAppleIdentityProvider(session, stored);
+            signer.prepareClientSecret("test.services.id");
+            JWSInput jws = new JWSInput(signer.getConfig().getClientSecret());
+            JsonWebToken secret = jws.readJsonContent(JsonWebToken.class);
+            assertEquals("ES256", jws.getHeader().getRawAlgorithm());
+            assertEquals(keyId, jws.getHeader().getKeyId());
+            assertEquals("fixture-team", secret.getIssuer());
+            assertEquals("test.services.id", secret.getSubject());
+            assertTrue(secret.hasAudience(TesseraAppleIdentityProvider.ISSUER));
+            assertEquals(180 * 86400L, secret.getExp() - secret.getIat());
+            KeyWrapper publicKey = new KeyWrapper();
+            publicKey.setAlgorithm("ES256");
+            publicKey.setPublicKey(pair.getPublic());
+            assertTrue(new ECDSASignatureVerifierContext(publicKey).verify(
+                    jws.getEncodedSignatureInput().getBytes(StandardCharsets.UTF_8), jws.getSignature()));
+            assertEquals(p8, stored.getConfig().get("clientSecret"));
+        }
     }
 
     private static class TestApple extends TesseraAppleIdentityProvider {

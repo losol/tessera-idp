@@ -29,7 +29,13 @@ The upstream `apple` factory and claim mappers are not installed.
 
 One compatibility patch removes the obsolete `@Override` annotation from
 `exchangeExternalTokenV1Impl`: Keycloak 26.8 renamed that SPI. The patch is
-marked in the source and provenance; the other four files are unchanged.
+marked in the source and provenance. The callback also adds `@Provider` and
+retains upstream's empty `META-INF/beans.xml` for Quarkus REST resource
+discovery; without discovery the actual POST returns 405. These requirements
+are described in the [Keycloak developer guide](https://www.keycloak.org/docs/26.8.0/server_development/#_extensions_rest).
+The other three source files are unchanged.
+`@Vetoed` preserves request-specific callback construction by the broker;
+CDI cannot inject its authentication callback and event constructor arguments.
 The wrapper blocks both the old method and the current exchange SPI.
 
 The Tessera wrapper requires Keycloak's full ID-token validation, including the
@@ -85,6 +91,9 @@ page. Bind the first and post login flows from [the common broker contract](brok
 (`tessera-broker-linking` and `tessera-broker-policy`). Do not use the stock
 automatic email-link authenticator as a substitute. Set `syncMode=IMPORT`;
 set `trustEmail=false` (verification comes from the validated signed claim).
+Attach the shared **Validated broker identity guard** mapper
+(`tessera-broker-claims`, `syncMode=IMPORT`) to Apple; it validates the signed
+identity and configuration before Keycloak can mutate or natively link users.
 the wrapper enforces it so a subsequent Apple login cannot overwrite an
 existing email/profile or citizen association. Keep the alias/issuer stable:
 returning users resolve by the broker's fixed issuer plus Apple `sub`, not
@@ -183,6 +192,41 @@ Keycloak 26.8.2 and synthetic signing keys. Browser coverage must include:
 | Validation failures | Wrong audience/issuer/signature, expired/missing-exp token, missing/wrong nonce, missing/mutated/replayed state and token endpoint errors fail before account/link side effects. |
 | Profile failures | Missing optional names works; malformed first-consent profile fails safely; unsigned profile email cannot create a verified link. |
 | Exchange | ID-token/code exchange variants fail closed; native authenticated browser linking still works. |
+
+Run provider regressions with `mvn -f plugins/tessera-otp/pom.xml clean package`.
+The JUnit cases sign real synthetic RSA ID tokens, exercise inherited nonce
+validation and verify ES256 client-secret generation/rotation using synthetic
+P8 keys. They do not contact Apple.
+
+The Apple-specific [browser runner](../scripts/apple-broker-browser.py) imports
+the shared `broker-browser.py` helper from #92. Start the shared loopback
+provider/SMTP fixture and a disposable `apple-fixture` Keycloak 26.8.2 realm
+from `broker-realm.py --provider apple`, with the test-only Apple factory JAR,
+the Ratio theme and the required claims mapper. Use complete seed names and
+admin-visible `citizen_id` attributes as defined by the common fixture. The
+fixture factory must never be packaged in the production image.
+
+```bash
+BROKER_KEYCLOAK_URL=http://127.0.0.1:18083 \
+BROKER_REALM=apple-fixture \
+python3 scripts/apple-broker-browser.py
+```
+
+The runner accepts only loopback fixture realms and uses disposable fixture
+admin credentials (override with `BROKER_ADMIN_USERNAME` and
+`BROKER_ADMIN_PASSWORD` for that local test realm). It compares account IDs,
+emails, verification, profile, required actions, attributes and federated
+links before/after each rejection and checks immutable identity on returning
+login/auto-link. Never supply production credentials to this test harness.
+
+Synthetic consent uses an explicit fixture-only automatic selector. The real
+AO browser navigates through Keycloak and submits Apple's normal `form_post`;
+the production broker still validates signature, issuer, audience, state and
+nonce. This is deterministic **broker/runtime** evidence. It does not prove
+provider-button clicks, keyboard navigation, OTP entry/fallback, or interactive
+native account linking when AO input dispatch is unavailable. Keep those
+interactive checks open separately; never infer success from input-dispatched
+messages or an error page without checking account/link side effects.
 
 Live Apple Developer credentials, public HTTPS callback registration, real
 consent and actual relay SMTP delivery are **external rollout checks**. Local
