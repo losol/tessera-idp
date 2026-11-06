@@ -270,13 +270,13 @@ distinct site), with `BROKER_KEYCLOAK_URL=http://localhost:18086` and
 `Sec-Fetch-Site: cross-site` header on the POST before code exchange. Different
 ports on `127.0.0.1` alone are only different origins and are insufficient.
 
-On 2026-11-06 the clean canonical launcher and Keycloak 26.8.2 completed
-45 Maven tests (21 Apple-specific) and all **26 Apple broker/runtime scenarios**
+On 2026-11-07 (Europe/Oslo) the clean canonical launcher and Keycloak 26.8.2 completed
+47 Maven tests (21 Apple-specific) and all **26 Apple broker/runtime scenarios**
 in this runner. Positive RP code-exchange/userinfo results identified the
 expected original local account; rejected callbacks preserved full account,
 credential-type, required-action, link and citizen-attribute snapshots.
 The native confirmation boundary also passed without account mutation.
-These results used shared dependency `4152dd7` and synthetic keys/accounts.
+These results used shared dependency `5870745` and synthetic keys/accounts.
 The complete 26-case matrix also passed on a second clean runtime with Apple
 on `http://127.0.0.1:18089` and Keycloak on `http://localhost:18086`, with the
 test-only cross-site request-header guard enabled. RP identity and full
