@@ -103,11 +103,13 @@ class TesseraAppleIdentityProviderTest {
         return provider.getFederatedIdentity(profile, response);
     }
 
-    @ParameterizedTest @ValueSource(strings = {"aud", "iss", "azp", "exp", "sub", "missing-exp"})
+    @ParameterizedTest @ValueSource(strings = {"aud", "iss", "azp", "exp", "zero-exp", "negative-exp", "sub", "missing-exp"})
     void rejectsInvalidValidatedClaims(String field) throws Exception {
         Map<String, Object> claims = claims();
         switch (field) {
             case "exp" -> claims.put("exp", Instant.now().getEpochSecond() - 60);
+            case "zero-exp" -> claims.put("exp", 0);
+            case "negative-exp" -> claims.put("exp", -1);
             case "sub" -> claims.put("sub", "");
             case "missing-exp" -> claims.remove("exp");
             default -> claims.put(field, "wrong-value");

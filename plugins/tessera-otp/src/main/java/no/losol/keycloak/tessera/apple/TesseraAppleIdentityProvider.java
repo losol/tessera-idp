@@ -43,7 +43,8 @@ public class TesseraAppleIdentityProvider extends AppleIdentityProvider {
         // Upstream 1.17.0 ignores the audience. Use Keycloak's complete OIDC
         // validation, including signature, issuer, activity, audience and azp.
         JsonWebToken token = super.validateToken(encodedToken, false);
-        if (token.getSubject() == null || token.getSubject().isBlank() || token.getExp() == null) {
+        if (token.getSubject() == null || token.getSubject().isBlank()
+                || token.getExp() == null || token.getExp() <= 0) {
             throw new IdentityBrokerException("Apple ID token requires subject and expiration");
         }
         return token;
