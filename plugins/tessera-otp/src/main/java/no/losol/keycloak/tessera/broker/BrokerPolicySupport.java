@@ -16,7 +16,7 @@ final class BrokerPolicySupport {
         if (!requiredAlias.equals(idp.getAlias()) || idp.getSyncMode() != IdentityProviderSyncMode.IMPORT
                 || Boolean.TRUE.equals(idp.isTrustEmail())
                 || !"true".equals(idp.getConfig().get("validateSignature"))
-                || "true".equals(idp.getConfig().get("disableNonce"))) {
+                || Boolean.parseBoolean(idp.getConfig().get("disableNonce"))) {
             throw new IdentityBrokerException("Tessera requires IMPORT, trustEmail=false, signature and nonce validation");
         }
     }

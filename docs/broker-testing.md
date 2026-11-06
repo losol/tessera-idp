@@ -75,17 +75,35 @@ For targeted runs:
 ```bash
 python3 scripts/broker-browser.py --cases gmail,returning,changed-email,missing-email,workspace,link-existing
 python3 scripts/broker-browser.py --cases unverified,conflict,protected,strict,bad-audience,bad-issuer,bad-nonce,missing-nonce,bad-signature,expired,bad-state,missing-state,token-error,failure
+python3 scripts/broker-browser.py --cases external,external-expired,external-existing
 ```
 
 First attachment tests require fresh synthetic identities. Start a fresh runtime
 to repeat the complete suite. Returning cases intentionally reuse the same
 subject. The `changed-email` case presents another existing account's email and
 must keep the original identity. External cases `external` and
-`external-existing` stop for signed email-link confirmation: captured mail is
-available only at `http://127.0.0.1:18089/mail?to=<synthetic-address>`.
-They must not reach the client callback before confirmation.
+`external-existing` assert the signed email-link confirmation gate: captured mail
+is available only at `http://127.0.0.1:18089/mail?to=<synthetic-address>`.
+The dedicated tests prove there is no provider attachment/client login before
+proof, open the captured link in the session browser, verify the authenticated
+local ID and preserved citizen data, and reject reused links. `external-expired`
+temporarily uses a one-second action-token lifespan in the disposable realm and
+proves an expired link cannot authenticate or change accounts, then restores the
+original lifespan. The full default suite includes these cases, ambiguity,
+strict account/client/action cases, and provider cancellation/failure.
 
 ## Interactive acceptance and live-provider limits
+
+Verified on 2026-11-06: the canonical launcher imported a clean
+`google-final-fixture` realm and started Keycloak 26.8.2 on loopback port 18085.
+The default Google suite passed **29 cases** with authorization-result subject
+checks and persisted account/link/citizen assertions, including external new and
+existing account confirmation, expired/reused signed mail links, ambiguity,
+strict account/client/action policy, cancellation and token/state failures.
+The provider's **26 unit/SPI tests** passed, including native resend mail count
+and proof-completion guards. Ratio built successfully with Node 24. The release
+JAR contained no fixture classes. These are local signed-fixture results, not
+live-provider or interactive input proof.
 
 In the session-owned AO browser, verify Ratio offers Google plus OTP, provider
 button and keyboard navigation, new/returning login, matching-account attachment,
