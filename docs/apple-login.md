@@ -206,6 +206,18 @@ the Ratio theme and the required claims mapper. Use complete seed names and
 admin-visible `citizen_id` attributes as defined by the common fixture. The
 fixture factory must never be packaged in the production image.
 
+With `KEYCLOAK_DIST`, `JAVA_HOME` and Maven configured as in
+[the common test guide](broker-testing.md), run the fixture and Apple runtime
+in separate terminals:
+
+```bash
+node scripts/broker-fixture.mjs
+
+BROKER_PROVIDER=apple BROKER_REALM=apple-fixture BROKER_PORT=18083 \
+BROKER_FIXTURE_FACTORY=no.losol.keycloak.tessera.apple.AppleFixtureIdentityProviderFactory \
+bash scripts/broker-runtime.sh
+```
+
 ```bash
 BROKER_KEYCLOAK_URL=http://127.0.0.1:18083 \
 BROKER_REALM=apple-fixture \
@@ -227,6 +239,26 @@ provider-button clicks, keyboard navigation, OTP entry/fallback, or interactive
 native account linking when AO input dispatch is unavailable. Keep those
 interactive checks open separately; never infer success from input-dispatched
 messages or an error page without checking account/link side effects.
+
+For the authenticated native-link **confirmation boundary**, start the disposable
+runtime with the additional Google test factory by setting
+`BROKER_EXTRA_FIXTURE_FACTORY=no.losol.keycloak.tessera.fixture.FixtureGoogleIdentityProviderFactory`.
+Set the same variable when invoking the Apple runner with
+`--native-link-boundary`. It authenticates a synthetic target with the Google
+broker, requests Keycloak's native `idp_link:apple` action and verifies the
+**Linking Apple** confirmation page without account mutation. It deliberately
+stops there: Continue/Cancel interactions and completed different-address
+linking remain acceptance checks requiring working browser input.
+
+On 2026-11-06 the clean canonical launcher and Keycloak 26.8.2 completed
+45 Maven tests (21 Apple-specific) and all **26 Apple broker/runtime scenarios**
+in this runner. Positive RP code-exchange/userinfo results identified the
+expected original local account; rejected callbacks preserved full account,
+credential-type, required-action, link and citizen-attribute snapshots.
+The native confirmation boundary also passed without account mutation.
+These results used shared dependency `4152dd7` and synthetic keys/accounts.
+Interactive provider/keyboard/OTP and completed native linking remain blocked
+by AO 0.14.9 input dispatch; live Apple consent and relay delivery are unproven.
 
 Live Apple Developer credentials, public HTTPS callback registration, real
 consent and actual relay SMTP delivery are **external rollout checks**. Local
