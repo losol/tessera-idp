@@ -41,6 +41,7 @@ http.createServer(async (req, res) => {
   if (url.pathname === '/jwks') return send(200, JSON.stringify({ keys: [jwk] }), 'application/json');
   if (url.pathname === '/health') return send(200, 'ready', 'text/plain');
   if (url.pathname === '/control') {
+    if (url.searchParams.has('reset_profile')) seen.delete(url.searchParams.get('reset_profile'));
     nextScenario.set(url.searchParams.get('provider'), url.searchParams.get('scenario'));
     return send(200, 'fixture scenario selected', 'text/plain');
   }
@@ -94,7 +95,8 @@ http.createServer(async (req, res) => {
     const { original, provider, scenario, profile } = entry;
     if (scenario === 'token-error') return send(400, JSON.stringify({ error: 'invalid_grant' }), 'application/json');
     const now = Math.floor(Date.now() / 1000);
-    const claims = { iss: provider === 'apple' ? 'https://appleid.apple.com' : 'https://accounts.google.com', aud: original.searchParams.get('client_id'), iat: now, exp: now + 300, nonce: original.searchParams.get('nonce'), email_verified: true, ...profile };
+    const claims = { iss: provider === 'apple' ? 'https://appleid.apple.com' : 'https://accounts.google.com', aud: original.searchParams.get('client_id'), iat: now, exp: now + 300, nonce: original.searchParams.get('nonce'), email_verified: true,
+      ...(provider === 'google' && profile.email !== null ? { given_name: 'Fixture', family_name: 'Person', name: 'Fixture Person' } : {}), ...profile };
     if (profile.email === null) { delete claims.email; delete claims.email_verified; }
     if (scenario === 'bad-audience') claims.aud = 'wrong-client';
     if (scenario === 'bad-issuer') claims.iss = 'https://attacker.example';

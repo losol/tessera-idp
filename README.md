@@ -71,6 +71,15 @@ Build context is the repo root; the [Dockerfile](Dockerfile) reaches both
 
 ## CI
 
+## Social login
+
+Google uses the built-in Keycloak broker and existing Ratio login-methods support.
+See [Google setup](docs/google-login.md), the [shared verified-email and account-linking contract](docs/broker-linking.md),
+and [local broker validation](docs/broker-testing.md). Realm/deployment declarations
+belong in eventuras-infra; application issuer and callback stay unchanged.
+
+## Build checks
+
 The Keycloak version must match between the [Dockerfile](Dockerfile) (runtime
 image) and [plugins/tessera-otp/pom.xml](plugins/tessera-otp/pom.xml) (compile
 target). Both workflows run a guard that fails on drift; run it locally too:
