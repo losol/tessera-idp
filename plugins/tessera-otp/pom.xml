@@ -33,6 +33,12 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>org.keycloak</groupId>
+            <artifactId>keycloak-crypto-default</artifactId>
+            <version>${keycloak.version}</version>
+            <scope>test</scope>
+        </dependency>
         <!-- OIDCIdentityProvider initializes JAX-RS MediaType during broker tests. -->
         <dependency>
             <groupId>org.jboss.resteasy</groupId>
