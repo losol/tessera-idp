@@ -21,9 +21,10 @@ public final class AppleFixtureIdentityProviderFactory extends
                 // Test-only shared broker accepts a synthetic secret; no Apple key.
             }
         };
-        provider.getConfig().setAuthorizationUrl("http://127.0.0.1:18089/apple/authorize?response_mode=form_post");
-        provider.getConfig().setTokenUrl("http://127.0.0.1:18089/apple/token");
-        provider.getConfig().setJwksUrl("http://127.0.0.1:18089/jwks");
+        String base = System.getProperty("tessera.fixture.base-url", "http://127.0.0.1:18089");
+        provider.getConfig().setAuthorizationUrl(base + "/apple/authorize?response_mode=form_post");
+        provider.getConfig().setTokenUrl(base + "/apple/token");
+        provider.getConfig().setJwksUrl(base + "/jwks");
         // The fixture verifies client authentication independently. A synthetic JWT
         // avoids any real Apple private key in fixtures or logs.
         provider.getConfig().setClientSecret("synthetic-fixture-secret");

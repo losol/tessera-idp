@@ -92,6 +92,10 @@ email. Do not delete/recreate links or migrate aliases by guessing email.
 
 Configure `clientId` as the Services ID, `teamId` and `keyId` as the Apple
 identifiers, and `clientSecret` as the raw PKCS#8 `.p8` private key content.
+For imported/API configuration, explicitly set `validateSignature=true`,
+`useJwksUrl=true`, `jwksUrl=https://appleid.apple.com/auth/keys` and
+`disableNonce=false`: Keycloak validates the persisted model before the
+provider constructor pins its effective settings.
 The inherited broker signs an ES256 client-secret JWT for the token endpoint;
 its `iss` is the Team ID, `sub` the Services ID, `aud` Apple's issuer and `kid`
 the Key ID. The wrapper keeps generated secrets request-local. Scopes default
