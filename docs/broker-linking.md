@@ -96,7 +96,12 @@ linking by posting a target account ID/email to the first-login authenticator.
 Fresh external-email proof uses Keycloak's native signed, expiring, one-use
 broker email-link action, bound to account/email/provider/subject/session. No
 provider `email_verified` flag substitutes for that proof. SMTP absence fails
-closed. An unverified pending new account may remain after cancellation; it
+closed. Once the native handler reports success for that exact local account
+and the same email, this proof also verifies the local email and satisfies only
+the native session's `VERIFY_EMAIL` action; the user is not asked to confirm the
+same address twice. Other required actions/protections are retained. The Ratio
+page simply asks the user to confirm their email and open the sent link.
+An unverified pending new account may remain after cancellation; it
 cannot be silently attached from another session. Account recovery/cleanup is
 an administrator operation, not email-based identity migration.
 

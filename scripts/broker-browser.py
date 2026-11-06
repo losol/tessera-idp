@@ -12,6 +12,8 @@ import time
 import urllib.parse
 import urllib.request
 import uuid
+import re
+import html
 
 BASE = os.environ.get('BROKER_KEYCLOAK_URL', 'http://127.0.0.1:18082')
 REALM = os.environ.get('BROKER_REALM', 'broker-fixture')
@@ -83,10 +85,10 @@ def settle(expected, timeout=20):
         text = result.get('text', '')
         if 'checkbox' in text and 'heading' not in text:
             text += '\n' + ao('get', 'text', 'body').get('text', '')
-        if expected in text:
+        if any(label in text for label in ([expected] if isinstance(expected, str) else expected)):
             return text
         time.sleep(0.3)
-    raise AssertionError('Browser did not show expected outcome: ' + expected)
+    raise AssertionError('Browser did not show expected outcome: ' + str(expected))
 
 def open_login(provider, scenario, client='fixture', action=None):
     global LAST_ORIGIN, LAST_STATE
@@ -126,7 +128,9 @@ def run_case(provider, scenario, success=False, client='fixture', expected_failu
         # Failures have an actual Keycloak error page; merely staying on the
         # consent/login page is not sufficient evidence of rejection.
         default_failure = 'invalid nonce' if scenario == 'bad-nonce' else (
-            'Unexpected error when authenticating with identity provider' if scenario == 'failure' else 'We are sorry')
+            'Access denied when authenticating with ' + provider.capitalize()
+            if scenario == 'cancel' or (scenario == 'user-cancelled' and provider == 'apple') else
+            'Unexpected error when authenticating with identity provider' if scenario in ('failure', 'user-cancelled') else 'We are sorry')
         settle(expected_failure or default_failure)
         result = browser_result()
         assert '/app/callback' not in result['url']
@@ -160,6 +164,98 @@ def run_case(provider, scenario, success=False, client='fixture', expected_failu
             assert any(x['identityProvider'] == provider for x in target['links'])
     print(json.dumps({'provider': provider, 'scenario': scenario, 'client': client, 'outcome': 'PASS'}), flush=True)
 
+def captured_link(address):
+    with urllib.request.urlopen(FIXTURE + '/mail?' + urllib.parse.urlencode({'to': address})) as response:
+        content = response.read().decode()
+    links = re.findall(r'<a href="([^"]+)">Confirm email link', content)
+    assert links, 'No signed fixture email captured'
+    return html.unescape(links[-1])
+
+def open_confirmation(link):
+    assert urllib.parse.urlparse(link).hostname in ('127.0.0.1', 'localhost')
+    ao('open', link)
+    ao('wait', '--load')
+
+def run_external_case(scenario):
+    address = 'external@example.org' if scenario == 'external' else 'existing@example.org'
+    before = ADMIN.state()
+    open_login('google', scenario)
+    settle(['Confirm your email address', 'Link Google'])
+    assert '/app/callback' not in browser_result()['url']
+    pending = ADMIN.state()
+    target = next(x for x in pending.values() if x['email'] == address)
+    assert target['links'] == [], 'Provider attached before fresh email confirmation'
+    with urllib.request.urlopen(FIXTURE + '/app/result?state=' + LAST_STATE) as response:
+        assert not json.load(response), 'Client authenticated before fresh email confirmation'
+    if scenario == 'external':
+        assert not target['emailVerified'], 'Untrusted Google email marked verified before local proof'
+    else:
+        assert target == before[target['id']], 'Fresh-proof gate changed the existing account'
+        assert target['attributes']['citizen_id'] == ['citizen-external-existing']
+    link = captured_link(address)
+    open_confirmation(link)
+    settle('Login complete')
+    with urllib.request.urlopen(FIXTURE + '/app/result?state=' + LAST_STATE) as response:
+        assert json.load(response)['sub'] == target['id'], 'Email proof authenticated a different account'
+    after = ADMIN.state()
+    linked = after[target['id']]
+    assert linked['emailVerified'] and linked['email'] == address
+    assert len(linked['links']) == 1 and linked['links'][0]['userId'] == ('google-external' if scenario == 'external' else 'google-external-existing')
+    if scenario == 'external-existing':
+        preserved = linked.copy(); preserved['links'] = target['links']
+        assert preserved == target, 'Fresh email proof changed existing account/citizen data'
+    # The signed action token is single use, including after a successful login.
+    open_confirmation(link)
+    settle(['We are sorry', 'Page has expired', 'Account linking already confirmed'])
+    assert ADMIN.state() == after, 'Reused email proof mutated account/link state'
+    print(json.dumps({'provider': 'google', 'scenario': scenario, 'outcome': 'PASS', 'proof': 'fresh email, correct sub, preserved account, one-use link'}), flush=True)
+
+def run_expired_external():
+    realm = ADMIN.request('')
+    lifespan = realm['actionTokenGeneratedByUserLifespan']
+    try:
+        ADMIN.request('', method='PUT', payload={'actionTokenGeneratedByUserLifespan': 1})
+        before = ADMIN.state()
+        open_login('google', 'external-existing')
+        settle(['Confirm your email address', 'Link Google'])
+        link = captured_link('existing@example.org')
+        assert ADMIN.state() == before, 'Expired-proof setup attached an identity before confirmation'
+        time.sleep(2.1)
+        open_confirmation(link)
+        settle('Action expired. Please start again.')
+        assert ADMIN.state() == before, 'Expired email proof mutated account/link state'
+        with urllib.request.urlopen(FIXTURE + '/app/result?state=' + LAST_STATE) as response:
+            assert not json.load(response), 'Expired proof authenticated a client'
+        print(json.dumps({'provider': 'google', 'scenario': 'external-expired', 'outcome': 'PASS'}), flush=True)
+    finally:
+        ADMIN.request('', method='PUT', payload={'actionTokenGeneratedByUserLifespan': lifespan})
+
+def run_action_strict(provider):
+    before = ADMIN.state()
+    ADMIN.logout_all()
+    open_login(provider, 'gmail' if provider == 'google' else 'apple-first', action='UPDATE_PROFILE')
+    settle('We are sorry')
+    assert ADMIN.state() == before and '/app/callback' not in browser_result()['url']
+    print(json.dumps({'provider': provider, 'scenario': 'strict-action', 'outcome': 'PASS'}), flush=True)
+
+def run_ambiguous(provider):
+    realm = ADMIN.request('')
+    seeded = []
+    try:
+        ADMIN.request('', method='PUT', payload={'duplicateEmailsAllowed': True, 'loginWithEmailAllowed': False})
+        for index in (1, 2):
+            username = 'fixture-ambiguous-' + str(index)
+            ADMIN.request('/users', method='POST', payload={'username': username, 'email': 'ambiguous@gmail.com',
+                'enabled': True, 'emailVerified': True, 'firstName': 'Fixture', 'lastName': 'Person',
+                'attributes': {'citizen_id': ['ambiguous-citizen-' + str(index)]}})
+            seeded.extend(x['id'] for x in ADMIN.state().values() if x['username'] == username)
+        run_case(provider, 'ambiguous')
+    finally:
+        for user_id in seeded:
+            ADMIN.request('/users/' + user_id, method='DELETE')
+        ADMIN.request('', method='PUT', payload={'duplicateEmailsAllowed': realm['duplicateEmailsAllowed'],
+                                                'loginWithEmailAllowed': realm['loginWithEmailAllowed']})
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--provider', default='google', choices=['google', 'apple'])
@@ -168,9 +264,18 @@ if __name__ == '__main__':
     ADMIN = FixtureAdmin()
     ADMIN.configure_profile()
     positive = ['gmail', 'returning', 'changed-email', 'missing-email', 'workspace', 'link-existing'] if args.provider == 'google' else ['apple-first', 'apple-return', 'apple-private', 'link-existing']
-    negative = ['unverified', 'conflict', 'protected', 'strict', 'bad-audience', 'bad-issuer', 'bad-nonce', 'missing-nonce', 'bad-signature', 'expired', 'bad-state', 'missing-state', 'token-error', 'failure']
-    selected = args.cases.split(',') if args.cases else positive + negative
+    negative = ['unverified', 'conflict', 'protected', 'strict', 'bad-audience', 'bad-issuer', 'bad-nonce', 'missing-nonce', 'missing-exp', 'bad-signature', 'expired', 'bad-state', 'missing-state', 'token-error', 'failure', 'cancel', 'user-cancelled']
+    selected = args.cases.split(',') if args.cases else positive + (['external', 'external-expired', 'external-existing'] if args.provider == 'google' else []) + negative + ['ambiguous', 'strict-action']
     for case in selected:
-        run_case(args.provider, case, success=case in positive)
+        if case in ('external', 'external-existing'):
+            run_external_case(case)
+        elif case == 'external-expired':
+            run_expired_external()
+        elif case == 'ambiguous':
+            run_ambiguous(args.provider)
+        elif case == 'strict-action':
+            run_action_strict(args.provider)
+        else:
+            run_case(args.provider, case, success=case in positive)
     if not args.cases:
         run_case(args.provider, positive[0], success=False, client='fixture-strict')

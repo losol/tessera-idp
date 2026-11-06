@@ -12,6 +12,12 @@ import type { ThemeName } from "../kc.gen";
  * below for why both tags must be registered.
  */
 const norwegianTesseraOtpMessages = {
+    emailLinkIdpTitle: "Bekreft e-postadressen din",
+    emailLinkIdp1: "Vi har sendt en lenke til {1}. Åpne den for å fortsette innloggingen.",
+    emailLinkIdp2: "Har du ikke fått e-posten?",
+    emailLinkIdp3: "for å få en ny lenke.",
+    emailLinkIdp4: "Har du allerede bekreftet i en annen nettleser?",
+    emailLinkIdp5: "for å fortsette innloggingen.",
     tesseraOtpEmailTitle: "Logg inn",
     tesseraOtpEmailInstruction: "Skriv inn e-postadressen din for å få en innloggingskode.",
     tesseraOtpInvalidEmail: "Vennligst skriv inn en gyldig e-postadresse.",
@@ -79,6 +85,12 @@ const { useI18n, ofTypeI18n } = i18nBuilder
     })
     .withCustomTranslations({
         en: {
+            emailLinkIdpTitle: "Confirm your email address",
+            emailLinkIdp1: "We sent a link to {1}. Open it to continue signing in.",
+            emailLinkIdp2: "No email yet?",
+            emailLinkIdp3: "to send a new link.",
+            emailLinkIdp4: "Already confirmed in another browser?",
+            emailLinkIdp5: "to continue signing in.",
             tesseraOtpEmailTitle: "Sign in",
             tesseraOtpEmailInstruction: "Enter your email address to receive a login code.",
             tesseraOtpInvalidEmail: "Please enter a valid email address.",

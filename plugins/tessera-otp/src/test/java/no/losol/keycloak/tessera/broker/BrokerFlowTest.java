@@ -9,8 +9,41 @@ import org.junit.jupiter.api.Test;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.authenticators.broker.util.SerializedBrokeredIdentityContext;
 import org.keycloak.models.UserModel;
+import org.keycloak.authentication.FlowStatus;
+import org.keycloak.authentication.authenticators.broker.IdpEmailVerificationAuthenticator;
 
 class BrokerFlowTest {
+    @Test void onlyNativeSuccessfulSameAccountProofSatisfiesTheEmailAction() {
+        for (FlowStatus status : new FlowStatus[]{FlowStatus.CHALLENGE, FlowStatus.SUCCESS}) {
+            var context = mock(AuthenticationFlowContext.class, RETURNS_DEEP_STUBS);
+            var broker = BrokerLinkingPolicyTest.broker("google", "pending@example.org", true, null);
+            var user = mock(UserModel.class, RETURNS_DEEP_STUBS);
+            when(user.getId()).thenReturn("pending-id");
+            when(user.getEmail()).thenReturn("pending@example.org");
+            when(user.isEnabled()).thenReturn(true);
+            when(user.credentialManager().getStoredCredentialsStream()).thenAnswer(x -> Stream.empty());
+            when(user.getRequiredActionsStream()).thenAnswer(x -> Stream.empty());
+            when(user.getAttributeStream(anyString())).thenAnswer(x -> Stream.empty());
+            when(context.getSession().users().searchForUserStream(any(), anyMap(), isNull(), isNull())).thenAnswer(x -> Stream.of(user));
+            when(context.getSession().users().getUserByUsername(any(), anyString())).thenReturn(null);
+            when(context.getSession().users().getFederatedIdentity(any(), eq(user), anyString())).thenReturn(null);
+            when(context.getAuthenticationSession().getAuthNote("tessera.broker.pending-user")).thenReturn("pending-id");
+            when(context.getRealm().getSmtpConfig()).thenReturn(java.util.Map.of("host", "fixture"));
+            when(context.getUser()).thenReturn(user);
+            when(context.getStatus()).thenReturn(status);
+            var nativeVerifier = mock(IdpEmailVerificationAuthenticator.class);
+            new TesseraBrokerLinking(nativeVerifier).authenticateImpl(context, new SerializedBrokeredIdentityContext(), broker);
+            verify(nativeVerifier).authenticate(context);
+            if (status == FlowStatus.SUCCESS) {
+                verify(user).setEmailVerified(true);
+                verify(context.getAuthenticationSession()).removeRequiredAction(UserModel.RequiredAction.VERIFY_EMAIL);
+            } else {
+                verify(user, never()).setEmailVerified(anyBoolean());
+                verify(context.getAuthenticationSession(), never()).removeRequiredAction(UserModel.RequiredAction.VERIFY_EMAIL);
+            }
+            verify(user, never()).removeRequiredAction(anyString());
+        }
+    }
     @Test void autoLinkSelectsOriginalAccountWithoutMutatingIt() {
         var context = mock(AuthenticationFlowContext.class, RETURNS_DEEP_STUBS);
         var broker = BrokerLinkingPolicyTest.broker("google", "person@gmail.com", true, null);
@@ -42,5 +75,16 @@ class BrokerFlowTest {
         broker.getIdpConfig().getConfig().put("syncMode", "IMPORT");
         broker.getIdpConfig().getConfig().put("validateSignature", "false");
         assertThrows(RuntimeException.class, () -> BrokerPolicySupport.configuration(broker));
+        broker.getIdpConfig().getConfig().put("validateSignature", "true");
+        broker.getIdpConfig().getConfig().put("disableNonce", "TRUE");
+        assertThrows(RuntimeException.class, () -> BrokerPolicySupport.configuration(broker));
+    }
+
+    @Test void stricterValueAnywhereInTheUserAttributeWins() {
+        var context = mock(AuthenticationFlowContext.class, RETURNS_DEEP_STUBS);
+        var user = mock(UserModel.class);
+        when(user.getFirstAttribute(BrokerLinkingPolicy.SECURITY)).thenReturn("standard");
+        when(user.getAttributeStream(BrokerLinkingPolicy.SECURITY)).thenReturn(Stream.of("standard", "strict"));
+        assertTrue(BrokerPolicySupport.strict(context, user));
     }
 }

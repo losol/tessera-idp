@@ -7,6 +7,7 @@ import java.util.UUID;
 import jakarta.ws.rs.core.Response;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
+import org.keycloak.authentication.FlowStatus;
 import org.keycloak.authentication.authenticators.broker.AbstractIdpAuthenticator;
 import org.keycloak.authentication.authenticators.broker.IdpEmailVerificationAuthenticator;
 import org.keycloak.authentication.authenticators.broker.util.ExistingUserInfo;
@@ -81,6 +82,17 @@ public final class TesseraBrokerLinking extends AbstractIdpAuthenticator {
                         new ExistingUserInfo(user.getId(), UserModel.EMAIL, user.getEmail()).serialize());
                 if (resend) verification.action(context);
                 else verification.authenticate(context);
+                // The native handler reports SUCCESS only after consuming the
+                // signed, account/email/subject/session-bound email proof. In
+                // this same-email-only flow that also verifies the local email;
+                // do not ask a new account to prove the identical address twice.
+                // No user required actions or stronger protections are removed.
+                if (context.getStatus() == FlowStatus.SUCCESS && context.getUser() != null
+                        && user.getId().equals(context.getUser().getId())
+                        && identity.email().equalsIgnoreCase(user.getEmail())) {
+                    user.setEmailVerified(true);
+                    auth.removeRequiredAction(UserModel.RequiredAction.VERIFY_EMAIL);
+                }
                 return;
             }
             // Existing accounts are selected as-is: no profile, email, citizen
