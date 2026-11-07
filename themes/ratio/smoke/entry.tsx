@@ -13,6 +13,10 @@
  *
  * An optional `?traceId=` param sets the error page's trace id, as Keycloak
  * does when tracing is enabled.
+ *
+ * An optional `?providers=` param adds generic OIDC providers with the given
+ * aliases to the mock realm (e.g. `providers=__proto__`), so odd but valid
+ * aliases can be rendered.
  */
 import { createRoot } from "react-dom/client";
 import { StrictMode } from "react";
@@ -28,6 +32,7 @@ const pageId = (params.get("pageId") ?? "login.ftl") as KcContext["pageId"];
 const locale = params.get("locale");
 const methods = params.get("methods");
 const traceId = params.get("traceId");
+const extraProviders = params.get("providers");
 
 const overrides: DeepPartial<KcContext> = {
     ...(locale !== null && {
@@ -47,6 +52,13 @@ const overrides: DeepPartial<KcContext> = {
 };
 
 const kcContext = getKcContextMock({ pageId, overrides });
+
+if (extraProviders !== null && kcContext.pageId === "login-tessera-otp-start.ftl") {
+    kcContext.social.providers = [
+        ...(kcContext.social.providers ?? []),
+        ...extraProviders.split(",").map(alias => ({ loginUrl: "#", alias, providerId: "oidc", displayName: alias }))
+    ];
+}
 
 createRoot(document.getElementById("root")!).render(
     <StrictMode>

@@ -28,6 +28,7 @@ Source lives in `src/login/`:
 - `KcPage.tsx` — page router (switches on `kcContext.pageId`)
 - `Template.tsx` — shared shell (card, brand, footer)
 - `pages/` — per-page components (e.g. `Login.tsx`)
+- `ProviderIcon.tsx` — brand marks for the Google, Apple and GitHub buttons
 - `main.css` — imports Ratio CSS + fonts and the login layout
 
 ## Login methods per client
@@ -51,6 +52,11 @@ form).
 - **Unknown entries are ignored**, so infra can list a method (e.g. `passkey`)
   before the theme can render it, or name a provider the realm does not enable.
 - **Nothing renderable falls back to the default page**, never an empty one.
+
+Provider buttons read "Continue with <display name>" (localised), with a brand
+mark for Google, Apple and GitHub (matched on Keycloak's provider id, or the
+alias for a generic OIDC provider named like one). Other providers get the
+display name only.
 
 This is presentation only: the email form and every provider stay reachable by
 a crafted POST or a `kc_idp_hint`. Restricting a client for real is a

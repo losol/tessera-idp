@@ -307,11 +307,12 @@
     gap: 0.625rem;
 }
 
-/* Identity-provider buttons (Vipps, GitHub) — the primary login choice. */
+/* Identity-provider buttons (Google, Apple, Vipps, GitHub) — the primary login choice. */
 .ratio-login__social-btn {
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 0.75rem;
     width: 100%;
     padding: 0.75rem 1.25rem;
     font-size: 1rem;
@@ -331,6 +332,22 @@
 
 .ratio-login__social-btn:active {
     transform: scale(1.02);
+}
+
+/* Brand mark on the provider buttons (see ProviderIcon.tsx). */
+.ratio-login__social-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: none;
+}
+
+/* Google's mark keeps a white background on the filled lead button, as its
+ * branding guidelines require; on the outlined buttons the card is white. */
+.ratio-login__social-btn--lead .ratio-login__social-icon--badge {
+    box-sizing: content-box;
+    padding: 0.25rem;
+    background: #fff;
+    border-radius: 9999px;
 }
 
 /* Secondary email one-time-code path. */

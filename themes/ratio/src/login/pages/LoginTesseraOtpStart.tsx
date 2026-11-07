@@ -27,6 +27,7 @@ import { Input } from "@eventuras/ratio-ui/forms";
 import { Label } from "@eventuras/ratio-ui/forms";
 import type { KcContext } from "../KcContext";
 import { resolveLoginMethods, type Provider } from "../loginMethods";
+import { ProviderIcon } from "../ProviderIcon";
 import type { I18n } from "../i18n";
 
 // Side-effect import: registers the <altcha-widget> custom element (v3). v3 ships
@@ -130,9 +131,9 @@ export default function LoginTesseraOtpStart(
                                     ? "ratio-login__social-btn ratio-login__social-btn--lead"
                                     : "ratio-login__social-btn"
                             }
-                            aria-label={p.displayName}
                         >
-                            <span dangerouslySetInnerHTML={{ __html: kcSanitize(p.displayName) }} />
+                            <ProviderIcon providerId={p.providerId} alias={p.alias} />
+                            <span>{msgStr("tesseraContinueWith", p.displayName)}</span>
                         </a>
                     </li>
                 ))}
