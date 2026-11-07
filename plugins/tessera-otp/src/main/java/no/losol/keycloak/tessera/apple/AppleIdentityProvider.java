@@ -15,12 +15,14 @@ import org.keycloak.broker.oidc.OIDCIdentityProvider;
 import org.keycloak.broker.oidc.OIDCIdentityProviderConfig;
 import org.keycloak.broker.provider.AuthenticationRequest;
 import org.keycloak.broker.provider.BrokeredIdentityContext;
+import org.keycloak.broker.provider.IdentityBrokerException;
 import org.keycloak.broker.social.SocialIdentityProvider;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.http.simple.SimpleHttpRequest;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
+import org.keycloak.representations.JsonWebToken;
 import org.keycloak.vault.VaultStringSecret;
 
 /**
@@ -126,6 +128,20 @@ public class AppleIdentityProvider extends OIDCIdentityProvider implements Socia
 
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    /**
+     * Keycloak treats a token without {@code exp} (or with {@code exp=0}) as
+     * never expiring. Apple always sets one, so a token without it is not
+     * Apple's; reject it rather than accept it for ever.
+     */
+    @Override
+    protected JsonWebToken validateToken(String encodedToken, boolean ignoreAudience) {
+        JsonWebToken token = super.validateToken(encodedToken, ignoreAudience);
+        if (token.getExp() == null || token.getExp() <= 0) {
+            throw new IdentityBrokerException("Apple ID token has no expiration");
+        }
+        return token;
     }
 
     @Override

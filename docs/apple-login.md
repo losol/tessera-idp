@@ -97,4 +97,5 @@ linking notes in [social-login.md](social-login.md).
 The provider was verified against Keycloak 26.8.2 with a stand-in Apple
 (form_post callback, ES256 client secret, first-consent name, returning login
 by `sub` without an email claim, cancel, auto-link to an existing account,
-relay address, and the pre-made client secret variant).
+relay address, an ID token without `exp` rejected, and the pre-made client
+secret variant).
