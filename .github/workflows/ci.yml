@@ -79,3 +79,5 @@ jobs:
           tags: tessera-idp:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Default themes — packaged Keycloak + Mailpit regression smoke
+        run: bash scripts/smoke-default-themes.sh tessera-idp:ci

@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { keycloakify } from "keycloakify/vite-plugin";
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 // https://vitejs.dev/config/
@@ -24,6 +24,19 @@ export default defineConfig({
             // the "no" messages plus server-messages/messages_nb.properties.
             // Runs in the generated resources dir, before the JAR is packed.
             postBuild: async () => {
+                // KC_SPI_THEME__DEFAULT=ratio applies to every unset theme type.
+                // Keep the stock consoles/email through parent-only children.
+                // Keycloakify 11's buildJar scans these directories AFTER this
+                // hook to generate META-INF/keycloak-themes.json in the same JAR.
+                for (const [type, parent] of Object.entries({
+                    account: "keycloak.v3",
+                    admin: "keycloak.v2",
+                    email: "keycloak"
+                })) {
+                    await mkdir(`theme/ratio/${type}`, { recursive: true });
+                    await writeFile(`theme/ratio/${type}/theme.properties`, `parent=${parent}\n`);
+                }
+
                 const dir = "theme/ratio/login";
                 const no = await readFile(`${dir}/messages/messages_no.properties`, "utf8");
                 const extra = await readFile(
