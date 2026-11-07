@@ -26,6 +26,18 @@ const kcContextExtensionPerPage: KcContextExtensionPerPage = {
                     alias: "github",
                     providerId: "github",
                     displayName: "GitHub"
+                },
+                {
+                    loginUrl: "#",
+                    alias: "google",
+                    providerId: "google",
+                    displayName: "Google"
+                },
+                {
+                    loginUrl: "#",
+                    alias: "apple",
+                    providerId: "apple",
+                    displayName: "Apple"
                 }
             ]
         }

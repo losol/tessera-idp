@@ -66,8 +66,8 @@ for (const pageId of PAGE_IDS) {
 
 // Per-client login methods on the Tessera OTP start page, driven by the
 // client attribute `tessera.login-methods` (smoke/entry.tsx `?methods=`). The
-// mock realm offers Vipps and GitHub. `lead` is the element that must come
-// first and be emphasised; `absent` must not be rendered at all.
+// mock realm offers Vipps, GitHub, Google and Apple. `lead` is the element
+// that must come first and be emphasised; `absent` must not be rendered at all.
 const LOGIN_METHOD_CASES: {
     methods: string | null;
     providers: string[];
@@ -75,7 +75,8 @@ const LOGIN_METHOD_CASES: {
     emailForm: "open" | "link" | "none";
 }[] = [
     // Attribute absent → unchanged default (doktorinord): all providers, no lead.
-    { methods: null, providers: ["vipps", "github"], lead: null, emailForm: "link" },
+    { methods: null, providers: ["vipps", "github", "google", "apple"], lead: null, emailForm: "link" },
+    { methods: "google,apple,otp", providers: ["google", "apple"], lead: "#social-google", emailForm: "link" },
     { methods: "github", providers: ["github"], lead: "#social-github", emailForm: "none" },
     { methods: "otp", providers: [], lead: "#kc-email-form", emailForm: "open" },
     { methods: "otp,github", providers: ["github"], lead: "#kc-email-form", emailForm: "open" },
@@ -83,7 +84,7 @@ const LOGIN_METHOD_CASES: {
     { methods: "github,vipps", providers: ["github", "vipps"], lead: "#social-github", emailForm: "none" },
     // Unknown entries are ignored; nothing renderable falls back to the default.
     { methods: "passkey,otp", providers: [], lead: "#kc-email-form", emailForm: "open" },
-    { methods: "passkey", providers: ["vipps", "github"], lead: null, emailForm: "link" }
+    { methods: "passkey", providers: ["vipps", "github", "google", "apple"], lead: null, emailForm: "link" }
 ];
 
 for (const c of LOGIN_METHOD_CASES) {
@@ -103,6 +104,16 @@ for (const c of LOGIN_METHOD_CASES) {
 
         await expect(page.locator("#kc-email-form")).toHaveCount(c.emailForm === "open" ? 1 : 0);
         await expect(page.locator(".ratio-login__textlink")).toHaveCount(c.emailForm === "link" ? 1 : 0);
+
+        // Google, Apple and GitHub carry a brand mark; Vipps (generic OIDC) does not.
+        const withIcon = await page
+            .locator(".ratio-login__social-btn:has(.ratio-login__social-icon)")
+            .evaluateAll(els => els.map(el => el.id.replace(/^social-/, "")));
+        expect(withIcon, "providers with an icon").toEqual(c.providers.filter(p => p !== "vipps"));
+        // Every button is labelled "Continue with <provider>".
+        for (const p of c.providers) {
+            await expect(page.locator(`#social-${p}`)).toContainText(/^Continue with /);
+        }
 
         if (c.lead !== null) {
             // The lead comes first in the form wrapper.
