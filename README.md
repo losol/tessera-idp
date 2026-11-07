@@ -57,7 +57,7 @@ override either.
 | Variable | Default | Why |
 | --- | --- | --- |
 | `KC_TRACING_SAMPLER_RATIO` | `0.0` | Tracing is built in (`--tracing-enabled`) so every request gets an OpenTelemetry trace id. The id prefixes the request's log lines and the login theme's error page shows it as the support reference. At `0.0` nothing is exported, so no collector is needed; to export traces, raise the ratio and set `KC_TRACING_ENDPOINT`. |
-| `KC_SPI_THEME__DEFAULT` | `ratio` | Pages Keycloak renders without a realm (e.g. an unknown realm) use the ratio theme instead of Keycloak's stock page. |
+| `KC_SPI_THEME__DEFAULT` | `ratio` | All unset theme types default to ratio, including pages without a realm (e.g. an unknown realm). The Ratio JAR supplies the login UI and parent-only children of stock `keycloak.v3` (account), `keycloak.v2` (admin), and `keycloak` (email). Realms need no explicit theme overrides. |
 
 To find the log lines for a reference someone reports from the error page:
 
@@ -82,4 +82,29 @@ target). Both workflows run a guard that fails on drift; run it locally too:
 
 ```bash
 scripts/check-keycloak-version.sh
+```
+
+The image CI job also runs the default-theme regression smoke against the built
+image and official Mailpit. To reproduce locally with Docker:
+
+```bash
+docker build -t tessera-idp:ci .
+bash scripts/smoke-default-themes.sh tessera-idp:ci
+```
+
+The smoke creates and removes a disposable realm with all four theme fields
+absent, verifies the master admin theme is unset, checks stock account/admin
+HTML and inherited JS, Ratio login/unknown-realm pages, JAR metadata/parents,
+and sends a real Tessera OTP through `EmailTemplateProvider` to Mailpit, then
+redeems its delivered code. No filesystem theme mounts are used. With Docker
+unavailable, the same stdlib HTTP suite can target disposable native Keycloak
+and official Mailpit processes (Keycloak must use `KC_SPI_THEME__DEFAULT=ratio`
+and the built JARs in `providers/`):
+
+```bash
+KEYCLOAK_URL=http://127.0.0.1:8080 MAILPIT_URL=http://127.0.0.1:8025 \
+SMTP_HOST=127.0.0.1 SMTP_PORT=1025 \
+THEME_JAR="$PWD/themes/ratio/dist_keycloak/keycloak-ratio-theme.jar" \
+KC_BOOTSTRAP_ADMIN_PASSWORD=local-only \
+python3 scripts/smoke-default-themes.py
 ```
