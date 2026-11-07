@@ -341,6 +341,15 @@
     flex: none;
 }
 
+/* Google's mark keeps a white background on the filled lead button, as its
+ * branding guidelines require; on the outlined buttons the card is white. */
+.ratio-login__social-btn--lead .ratio-login__social-icon--badge {
+    box-sizing: content-box;
+    padding: 0.25rem;
+    background: #fff;
+    border-radius: 9999px;
+}
+
 /* Secondary email one-time-code path. */
 .ratio-login__otp {
     margin-top: 1.25rem;

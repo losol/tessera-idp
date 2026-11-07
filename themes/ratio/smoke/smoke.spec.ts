@@ -115,6 +115,11 @@ for (const c of LOGIN_METHOD_CASES) {
             await expect(page.locator(`#social-${p}`)).toContainText(/^Continue with /);
         }
 
+        // A leading Google keeps its mark on a white badge (brand guideline).
+        if (c.lead === "#social-google") {
+            await expect(page.locator("#social-google .ratio-login__social-icon--badge")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+        }
+
         if (c.lead !== null) {
             // The lead comes first in the form wrapper.
             const first = page.locator("#kc-form-wrapper > :first-child");
@@ -122,6 +127,19 @@ for (const c of LOGIN_METHOD_CASES) {
         }
     });
 }
+
+// A generic OIDC provider may carry any alias Keycloak accepts, including one
+// that collides with an object property; it must render as a plain button.
+test("login-tessera-otp-start.ftl renders a provider aliased __proto__", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", err => errors.push(err.message));
+    await page.goto("/smoke/index.html?pageId=login-tessera-otp-start.ftl&providers=__proto__,constructor");
+    await expect(page.locator(".ratio-login__card")).toBeVisible({ timeout: 10000 });
+    await expect(page.locator("#social-__proto__")).toContainText("Continue with __proto__");
+    await expect(page.locator("#social-__proto__ .ratio-login__social-icon")).toHaveCount(0);
+    await expect(page.locator("#social-constructor .ratio-login__social-icon")).toHaveCount(0);
+    expect(errors).toEqual([]);
+});
 
 // Error page: the time is always shown; the trace id only when Keycloak set
 // one (tracing enabled), and then it is the reference support looks up.
