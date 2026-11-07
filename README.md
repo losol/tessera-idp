@@ -3,8 +3,13 @@
 Custom [Keycloak](https://www.keycloak.org/) image that bakes two providers into
 an optimized runtime:
 
-- **`plugins/tessera-otp/`** — Keycloak SPI provider (Java/Maven) for OTP.
+- **`plugins/tessera-otp/`** — Keycloak SPI providers (Java/Maven): the email
+  one-time-code authenticator and the [Sign in with Apple](docs/apple-login.md)
+  identity provider.
 - **`themes/ratio/`** — the Ratio login theme, built with [Keycloakify](https://www.keycloakify.dev/).
+
+Google and Apple login, and how social logins join existing accounts, are
+described in [docs/social-login.md](docs/social-login.md).
 
 Grouped under `plugins/` and `themes/` so more providers or themes can be added
 without cluttering the repo root.

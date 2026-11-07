@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Present so Quarkus indexes this JAR at `kc.sh build`. Keycloak's broker
+  callback is a JAX-RS sub-resource; the Apple provider adds a @POST handler
+  to it (Apple answers with response_mode=form_post), and RESTEasy Reactive
+  only sees request methods on classes that were indexed at build time.
+  Without this file the POST answers 405. No CDI beans are declared: with
+  "annotated" discovery nothing here carries a bean-defining annotation.
+-->
+<beans xmlns="https://jakarta.ee/xml/ns/jakartaee"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/beans_4_0.xsd"
+       version="4.0" bean-discovery-mode="annotated"/>

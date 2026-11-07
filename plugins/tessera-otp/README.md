@@ -1,4 +1,15 @@
-# Keycloak Tessera OTP Authenticator
+# Keycloak Tessera providers
+
+Two providers in one JAR:
+
+- **`tessera-otp`** — the passwordless one-time-code authenticator described below.
+- **`apple`** — a Sign in with Apple identity provider, see
+  [docs/apple-login.md](../../docs/apple-login.md). It is Keycloak's OIDC broker
+  with Apple's `form_post` callback, signed client secret and first-consent
+  name handling added. `META-INF/beans.xml` is there for it: without it Quarkus
+  does not index the JAR and the callback's POST handler answers 405.
+
+## Tessera OTP
 
 Passwordless one-time-code authenticator for Keycloak. User enters email, receives a 4-character code, enters it, and is logged in. New users are automatically created. The name is channel-agnostic so additional delivery channels (e.g. SMS) can be added later without renaming.
 
