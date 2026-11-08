@@ -18,8 +18,8 @@ import { HELP_URL_ATTRIBUTE, PRIVACY_URL_ATTRIBUTE, resolveLayout, safeUrl } fro
  * (PatternFly-based) template with Ratio-styled layouts, chosen per client
  * with the `ratio.layout` attribute (see layout.ts):
  *
- * - `card`   — a centred card (the default).
- * - `split`  — a brand panel beside the form; a band above it on phones.
+ * - `split`  — a brand panel beside the form; a band above it on phones (the default).
+ * - `card`   — a centred card.
  * - `column` — one calm column under a slim top bar, no card.
  * - `panel`  — the form in an edge panel, the service you sign in to beside it.
  *
@@ -271,7 +271,7 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
                 </div>
             );
 
-        default:
+        default: // "card"
             return (
                 <div className="ratio-login__page ratio-login__page--card">
                     <Card as="main" className="ratio-login__card" shadow="md">

@@ -85,8 +85,10 @@ client (Admin console: Clients → the client → Advanced → Attributes, or
   first paint, the way Ratio's own theme files expect.
 - **Pages without a client** (an unknown realm, some error pages) use the
   default theme.
-- The named themes and their fonts come from `@eventuras/ratio-ui/themes/*`;
-  a font file is only downloaded when a theme uses it.
+- The named themes come from `@eventuras/ratio-ui/themes/*`. **Every theme
+  uses Ratio's own fonts** (Source Serif 4, Source Sans 3): bureau and
+  tabula's Fira Sans and Space Mono are overridden in `main.css` and their
+  font files are not shipped.
 
 Preview in the smoke harness with `?pageId=login-tessera-otp-start.ftl&theme=bureau&scheme=dark`.
 
@@ -96,8 +98,8 @@ The client attribute `ratio.layout` picks the page layout:
 
 | Value | Layout |
 | --- | --- |
-| `card` (default) | A centred card, as before. |
-| `split` | A brand panel in the theme's primary colour beside the form; on a phone it becomes a band above it. |
+| `split` (default) | A brand panel in the theme's primary colour beside the form; on a phone it becomes a band above it. |
+| `card` | A centred card, the theme's original layout. |
 | `column` | One calm column under a slim top bar with the realm name, no card. |
 | `panel` | The form in an edge panel; beside it, the service you sign in to (the client's name, description and a link back). |
 

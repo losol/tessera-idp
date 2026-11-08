@@ -329,10 +329,30 @@ for (const layout of LAYOUTS) {
     }
 }
 
-test("an unknown layout falls back to the card", async ({ page }) => {
-    await page.goto("/smoke/index.html?pageId=login-tessera-otp-start.ftl&attr.ratio.layout=__proto__");
-    await expect(page.locator(".ratio-login__page--card")).toHaveCount(1);
-});
+for (const layout of [null, "__proto__", ""]) {
+    test(`layout ${layout === null ? "(absent)" : JSON.stringify(layout)} falls back to split`, async ({ page }) => {
+        const query = new URLSearchParams({ pageId: "login-tessera-otp-start.ftl" });
+        if (layout !== null) query.set("attr.ratio.layout", layout);
+        await page.goto(`/smoke/index.html?${query.toString()}`);
+        await expect(page.locator(".ratio-login__page--split")).toHaveCount(1);
+    });
+}
+
+// Every theme keeps Ratio's own fonts; bureau and tabula's Fira Sans and
+// Space Mono are neither used nor shipped.
+for (const theme of ["standard", "bureau", "ink", "tabula"]) {
+    test(`theme ${theme} uses the Ratio fonts`, async ({ page }) => {
+        const fontRequests: string[] = [];
+        page.on("request", request => {
+            if (request.resourceType() === "font") fontRequests.push(request.url());
+        });
+        await page.goto(`/smoke/index.html?pageId=login-tessera-otp-start.ftl&theme=${theme}`);
+        await expect(page.locator(".ratio-login__card")).toBeVisible({ timeout: 10000 });
+        await expect(page.locator("body")).toHaveCSS("font-family", /^"Source Sans 3"/);
+        await expect(page.locator(".ratio-login__headline")).toHaveCSS("font-family", /^"Source Serif 4"/);
+        expect(fontRequests.filter(url => /fira|spacemono/i.test(url))).toEqual([]);
+    });
+}
 
 test("split shows the brand texts, replaceable per client", async ({ page }) => {
     const query = new URLSearchParams({ pageId: "login-tessera-otp-start.ftl" });

@@ -5,8 +5,8 @@
 /**
  * Per-client page layout and footer links, read from client attributes:
  *
- * - `ratio.layout`      — `card` (default: a centred card), `split` (a brand
- *                         panel beside the form), `column` (one calm column,
+ * - `ratio.layout`      — `split` (default: a brand panel beside the form),
+ *                         `card` (a centred card), `column` (one calm column,
  *                         no card) or `panel` (the form in an edge panel, the
  *                         service you sign in to beside it).
  * - `ratio.help-url`    — a "Help" link in the footer.
@@ -20,11 +20,11 @@ export const LAYOUT_ATTRIBUTE = "ratio.layout";
 export const HELP_URL_ATTRIBUTE = "ratio.help-url";
 export const PRIVACY_URL_ATTRIBUTE = "ratio.privacy-url";
 
-const LAYOUTS = ["card", "split", "column", "panel"] as const;
+const LAYOUTS = ["split", "card", "column", "panel"] as const;
 
 export type RatioLayout = (typeof LAYOUTS)[number];
 
-export const DEFAULT_LAYOUT: RatioLayout = "card";
+export const DEFAULT_LAYOUT: RatioLayout = "split";
 
 export function resolveLayout(attributes: Record<string, string> | undefined): RatioLayout {
     const value = attributes?.[LAYOUT_ATTRIBUTE]?.trim().toLowerCase();
