@@ -3,10 +3,11 @@
 // SPDX-License-Identifier: MPL-2.0
 
 import "./main.css";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useLayoutEffect } from "react";
 import type { ClassKey } from "keycloakify/login";
 import type { KcContext } from "./KcContext";
 import { useI18n } from "./i18n";
+import { applyRatioTheme, resolveRatioTheme } from "./ratioTheme";
 import DefaultPage from "keycloakify/login/DefaultPage";
 import Template from "./Template";
 const UserProfileFormFields = lazy(
@@ -21,6 +22,7 @@ const ErrorPage = lazy(() => import("./pages/Error"));
 // attribute also activates the light/dark design tokens (--primary, --text, …).
 // Set it at module load — before first paint — so every login page is visible
 // and themed from the start. Without it the page renders but stays invisible.
+// KcPage then swaps in the client's theme (see ratioTheme.ts) before paint.
 if (typeof document !== "undefined") {
     document.documentElement.dataset.theme ??= "light";
 }
@@ -31,6 +33,25 @@ export default function KcPage(props: { kcContext: KcContext }) {
     const { kcContext } = props;
 
     const { i18n } = useI18n({ kcContext });
+
+    // The client's Ratio theme. Some pages (an unknown realm, a few error
+    // pages) render without a client and keep the default.
+    const { palette, colorScheme } = resolveRatioTheme(kcContext.client?.attributes);
+
+    // A layout effect runs before the browser paints, so the page never
+    // flashes the default theme first. `auto` follows the system setting live.
+    useLayoutEffect(() => {
+        const theme = { palette, colorScheme };
+        if (colorScheme !== "auto") {
+            applyRatioTheme(theme, false);
+            return;
+        }
+        const query = window.matchMedia("(prefers-color-scheme: dark)");
+        const update = () => applyRatioTheme(theme, query.matches);
+        update();
+        query.addEventListener("change", update);
+        return () => query.removeEventListener("change", update);
+    }, [palette, colorScheme]);
 
     return (
         <Suspense>

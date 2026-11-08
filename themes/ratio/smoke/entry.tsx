@@ -11,6 +11,10 @@
  * `tessera.login-methods` (e.g. `methods=otp,github`), so each per-client
  * layout of the Tessera OTP start page can be rendered.
  *
+ * Optional `?theme=` and `?scheme=` params set the client attributes
+ * `ratio.theme` and `ratio.color-scheme` (e.g. `theme=bureau&scheme=dark`), so
+ * each per-client Ratio theme can be rendered.
+ *
  * An optional `?traceId=` param sets the error page's trace id, as Keycloak
  * does when tracing is enabled.
  *
@@ -25,6 +29,7 @@ import KcPage from "../src/login/KcPage";
 import { getKcContextMock } from "../src/login/KcPageStory";
 import type { KcContext } from "../src/login/KcContext";
 import { LOGIN_METHODS_ATTRIBUTE } from "../src/login/loginMethods";
+import { COLOR_SCHEME_ATTRIBUTE, THEME_ATTRIBUTE } from "../src/login/ratioTheme";
 
 const params = new URLSearchParams(window.location.search);
 
@@ -33,6 +38,14 @@ const locale = params.get("locale");
 const methods = params.get("methods");
 const traceId = params.get("traceId");
 const extraProviders = params.get("providers");
+const theme = params.get("theme");
+const scheme = params.get("scheme");
+
+const clientAttributes: Record<string, string> = {
+    ...(methods !== null && { [LOGIN_METHODS_ATTRIBUTE]: methods }),
+    ...(theme !== null && { [THEME_ATTRIBUTE]: theme }),
+    ...(scheme !== null && { [COLOR_SCHEME_ATTRIBUTE]: scheme })
+};
 
 const overrides: DeepPartial<KcContext> = {
     ...(locale !== null && {
@@ -45,8 +58,8 @@ const overrides: DeepPartial<KcContext> = {
             ]
         }
     }),
-    ...(methods !== null && {
-        client: { attributes: { [LOGIN_METHODS_ATTRIBUTE]: methods } }
+    ...(Object.keys(clientAttributes).length !== 0 && {
+        client: { attributes: clientAttributes }
     }),
     ...(traceId !== null && { traceId })
 };

@@ -64,6 +64,32 @@ per-client browser flow on the Keycloak side.
 
 Preview a layout in the smoke harness with `?pageId=login-tessera-otp-start.ftl&methods=otp,github`.
 
+## Ratio theme per client
+
+Two client attributes pick the Ratio theme the login pages wear for that
+client (Admin console: Clients → the client → Advanced → Attributes, or
+`attributes` in a realm import):
+
+| Attribute | Values | Default |
+| --- | --- | --- |
+| `ratio.theme` | `standard`, `bureau`, `ink`, `tabula` | `standard` |
+| `ratio.color-scheme` | `light`, `dark`, `auto` (follows the visitor's system setting) | `light` |
+
+```json
+"attributes": { "ratio.theme": "ink", "ratio.color-scheme": "dark" }
+```
+
+- **Absent or unknown values fall back to the default**, so a typo shows the
+  standard light theme rather than a broken page.
+- The theme is set on `<html>` (`data-theme`, `data-color-scheme`) before the
+  first paint, the way Ratio's own theme files expect.
+- **Pages without a client** (an unknown realm, some error pages) use the
+  default theme.
+- The named themes and their fonts come from `@eventuras/ratio-ui/themes/*`;
+  a font file is only downloaded when a theme uses it.
+
+Preview in the smoke harness with `?pageId=login-tessera-otp-start.ftl&theme=bureau&scheme=dark`.
+
 ## Build
 
 ```bash

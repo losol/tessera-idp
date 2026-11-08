@@ -159,3 +159,80 @@ for (const traceId of [null, "4c2aec90375e5ef6c3ecc0a3ac7d87fe"]) {
         }
     });
 }
+
+// Per-client Ratio theme, driven by the client attributes `ratio.theme` and
+// `ratio.color-scheme` (smoke/entry.tsx `?theme=` / `?scheme=`). Each case
+// checks the attributes written on <html> and that the theme's tokens
+// actually reached the page (its surface colour differs from the default).
+const THEME_CASES: {
+    theme: string | null;
+    scheme: string | null;
+    dataTheme: string;
+    dataColorScheme: string;
+}[] = [
+    // Absent → the standard light theme, as before.
+    { theme: null, scheme: null, dataTheme: "light", dataColorScheme: "light" },
+    { theme: null, scheme: "dark", dataTheme: "dark", dataColorScheme: "dark" },
+    { theme: "standard", scheme: "light", dataTheme: "light", dataColorScheme: "light" },
+    { theme: "bureau", scheme: null, dataTheme: "bureau", dataColorScheme: "light" },
+    { theme: "bureau", scheme: "dark", dataTheme: "bureau", dataColorScheme: "dark" },
+    { theme: "ink", scheme: "dark", dataTheme: "ink", dataColorScheme: "dark" },
+    { theme: " Tabula ", scheme: null, dataTheme: "tabula", dataColorScheme: "light" },
+    // Unknown values fall back to the default rather than break the page.
+    { theme: "__proto__", scheme: "purple", dataTheme: "light", dataColorScheme: "light" }
+];
+
+async function surfaceOf(page: import("@playwright/test").Page) {
+    return page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+}
+
+for (const c of THEME_CASES) {
+    test(`client theme ${c.theme ?? "(absent)"} / scheme ${c.scheme ?? "(absent)"}`, async ({ page }) => {
+        const errors: string[] = [];
+        page.on("pageerror", err => errors.push(err.message));
+
+        // Reference: the default page's surface colour.
+        await page.goto("/smoke/index.html?pageId=login-tessera-otp-start.ftl");
+        await expect(page.locator(".ratio-login__card")).toBeVisible({ timeout: 10000 });
+        const defaultSurface = await surfaceOf(page);
+
+        const query = new URLSearchParams({ pageId: "login-tessera-otp-start.ftl" });
+        if (c.theme !== null) query.set("theme", c.theme);
+        if (c.scheme !== null) query.set("scheme", c.scheme);
+        await page.goto(`/smoke/index.html?${query.toString()}`);
+        await expect(page.locator(".ratio-login__card")).toBeVisible({ timeout: 10000 });
+
+        const html = page.locator("html");
+        await expect(html).toHaveAttribute("data-theme", c.dataTheme);
+        await expect(html).toHaveAttribute("data-color-scheme", c.dataColorScheme);
+
+        const isDefault = c.dataTheme === "light";
+        const surface = await surfaceOf(page);
+        if (isDefault) {
+            expect(surface, "default theme keeps the default surface").toBe(defaultSurface);
+        } else {
+            expect(surface, "theme tokens should restyle the page").not.toBe(defaultSurface);
+        }
+
+        expect(await html.evaluate(el => getComputedStyle(el).opacity)).toBe("1");
+        expect(errors).toEqual([]);
+    });
+}
+
+// `auto` follows the visitor's system setting.
+for (const colorScheme of ["light", "dark"] as const) {
+    test(`client scheme auto follows a ${colorScheme} system setting`, async ({ page }) => {
+        await page.emulateMedia({ colorScheme });
+        await page.goto("/smoke/index.html?pageId=login-tessera-otp-start.ftl&theme=ink&scheme=auto");
+        await expect(page.locator(".ratio-login__card")).toBeVisible({ timeout: 10000 });
+        await expect(page.locator("html")).toHaveAttribute("data-theme", "ink");
+        await expect(page.locator("html")).toHaveAttribute("data-color-scheme", colorScheme);
+    });
+}
+
+// Square-cornered themes reach the login's own buttons too, not only Ratio's.
+test("tabula squares the provider buttons", async ({ page }) => {
+    await page.goto("/smoke/index.html?pageId=login-tessera-otp-start.ftl&theme=tabula");
+    await expect(page.locator(".ratio-login__card")).toBeVisible({ timeout: 10000 });
+    await expect(page.locator(".ratio-login__social-btn").first()).toHaveCSS("border-top-left-radius", "0px");
+});

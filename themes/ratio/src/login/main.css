@@ -26,6 +26,18 @@
 @import "@eventuras/ratio-ui/ratio-ui.css";
 
 /*
+ * The named Ratio themes a client can pick with the `ratio.theme` attribute
+ * (see ratioTheme.ts). Each file only applies under its own
+ * `<html data-theme="…">`, so loading all of them changes nothing for the
+ * standard theme. The font files are fetched only when a theme uses them.
+ */
+@import "@eventuras/ratio-ui/themes/bureau.css";
+@import "@eventuras/ratio-ui/themes/ink.css";
+@import "@eventuras/ratio-ui/themes/tabula.css";
+@import "@eventuras/ratio-ui/themes/bureau-fonts.css";
+@import "@eventuras/ratio-ui/themes/tabula-fonts.css";
+
+/*
  * Login layout. Plain CSS keyed off Ratio design tokens (defined in
  * ratio-ui.css) so the shell matches the design system without relying on
  * Tailwind's build step. Class names are scoped under `ratio-login` to
@@ -33,7 +45,7 @@
  */
 .ratio-login__body {
     margin: 0;
-    background-color: var(--color-neutral-50, #f5f5f4);
+    background-color: var(--surface, #f5f5f4);
     color: var(--text, var(--color-neutral-900, #1c1917));
     font-family: var(--font-sans, "Source Sans 3", system-ui, sans-serif);
 }
@@ -68,7 +80,7 @@
     font-family: var(--font-serif, "Source Serif 4", Georgia, serif);
     font-size: 1.5rem;
     margin: 0 0 0.25rem;
-    color: var(--color-primary-700, #1f4f6b);
+    color: var(--primary, #1f4f6b);
 }
 
 .ratio-login__title {
@@ -107,27 +119,27 @@
 }
 
 .ratio-login__alert--error {
-    background-color: var(--error-50, #fef2f2);
-    border-color: var(--error-solid, #dc2626);
-    color: var(--error-solid, #991b1b);
+    background-color: var(--error-bg);
+    border-color: var(--error-border);
+    color: var(--error-text);
 }
 
 .ratio-login__alert--warning {
-    background-color: var(--warning-50, #fffbeb);
-    border-color: var(--warning-solid, #d97706);
-    color: var(--warning-solid, #92400e);
+    background-color: var(--warning-bg);
+    border-color: var(--warning-border);
+    color: var(--warning-text);
 }
 
 .ratio-login__alert--success {
-    background-color: var(--success-50, #f0fdf4);
-    border-color: var(--success-solid, #16a34a);
-    color: var(--success-solid, #166534);
+    background-color: var(--success-bg);
+    border-color: var(--success-border);
+    color: var(--success-text);
 }
 
 .ratio-login__alert--info {
-    background-color: var(--info-50, #eff6ff);
-    border-color: var(--info-solid, #2563eb);
-    color: var(--info-solid, #1e40af);
+    background-color: var(--info-bg);
+    border-color: var(--info-border);
+    color: var(--info-text);
 }
 
 .ratio-login__info {
@@ -241,7 +253,7 @@
     text-align: center;
     text-decoration: none;
     border: 1.5px solid transparent;
-    border-radius: 9999px;
+    border-radius: var(--button-radius, 9999px);
     cursor: pointer;
     transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
 }
@@ -271,7 +283,7 @@
 
 .ratio-login__btn--secondary:not(:disabled):hover {
     border-color: var(--primary, #2563eb);
-    background-color: var(--color-neutral-50, #fafaf9);
+    background-color: var(--card-hover, #fafaf9);
 }
 
 /* Full-width (pill stretches across the card). */
@@ -321,13 +333,13 @@
     color: var(--text, #1c1917);
     background: var(--card, #fff);
     border: 1.5px solid var(--border-1, #e7e5e4);
-    border-radius: 9999px;
+    border-radius: var(--button-radius, 9999px);
     transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
 }
 
 .ratio-login__social-btn:hover {
     border-color: var(--primary, #2563eb);
-    background: var(--color-neutral-50, #fafaf9);
+    background: var(--card-hover, #fafaf9);
 }
 
 .ratio-login__social-btn:active {
@@ -452,7 +464,7 @@
     padding: 0.75rem 1rem;
     border: 1px solid var(--border-1, #e7e5e4);
     border-radius: var(--radius-md, 0.5rem);
-    background-color: var(--color-neutral-50, #fafaf9);
+    background-color: var(--surface, #fafaf9);
     font-size: 0.8125rem;
     color: var(--text-muted, var(--color-neutral-600, #57534e));
 }
