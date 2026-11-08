@@ -169,10 +169,12 @@ and you would rather keep the translations in one place.
 }
 ```
 
-- `{0}`, `{1}` … are filled in as in the theme's own messages, e.g.
-  `ratio.text.tesseraContinueWith` = `Bruk {0}` gives "Bruk GitHub".
+- `{0}`, `{1}` … are filled in as in the message you replace, e.g.
+  `ratio.text.tesseraContinueWith` = `Bruk {0}` gives "Bruk GitHub". The first
+  value goes to the lowest placeholder, so a text for Keycloak's
+  `error-invalid-length-too-short` ("Minimal length is {1}.") uses `{1}` too.
 - **The texts are plain text.** Markup in an attribute shows as typed and is
-  never interpreted as HTML.
+  never interpreted as HTML, on the recovery-code print sheet too.
 - An empty value, an unknown key or a reference Keycloak cannot resolve falls
   back to the theme's own text.
 
@@ -180,7 +182,15 @@ The keys are the theme's messages in [`src/login/i18n.ts`](src/login/i18n.ts)
 (e.g. `tesseraOtpEmailTitle`, `tesseraOtpEmailInstruction`, `tesseraOtpUseCode`,
 `tesseraContinueWith`, `tesseraOtpTitle`, `tesseraOtpInstruction`) plus
 Keycloak's standard login messages (e.g. `loginTitle` for the browser tab,
-`doSubmit`, `errorTitle`).
+`doSubmit`, `errorTitle`). The profile forms label the standard fields with
+references to `username`, `email`, `firstName` and `lastName`, so
+`ratio.text.firstName` relabels the first-name field; their validation
+messages (e.g. `error-invalid-length-too-short`) work the same way.
+
+Two places are left out: keycloakify's info page (the list of required
+actions) and consent page (the client name in its title) build HTML from the
+text they look up, so there they keep the realm's or theme's text. Their other
+texts can be replaced as usual.
 
 Preview in the smoke harness with `?pageId=login-tessera-otp-start.ftl&text.tesseraOtpEmailTitle=Hei`.
 

@@ -32,6 +32,9 @@
  * An optional `?providers=` param adds generic OIDC providers with the given
  * aliases to the mock realm (e.g. `providers=__proto__`), so odd but valid
  * aliases can be rendered.
+ *
+ * An optional `?requiredActions=` param lists the info page's required actions
+ * (e.g. `requiredActions=UPDATE_PASSWORD,VERIFY_EMAIL`).
  */
 import { createRoot } from "react-dom/client";
 import { StrictMode } from "react";
@@ -92,6 +95,11 @@ const kcContext = getKcContextMock({ pageId, overrides });
 
 // What keycloakify's FTL hands the page for `${key}` strings it resolved.
 Object.assign(kcContext["x-keycloakify"].messages, realmTexts);
+
+const requiredActions = params.get("requiredActions");
+if (requiredActions !== null && kcContext.pageId === "info.ftl") {
+    kcContext.requiredActions = requiredActions.split(",");
+}
 
 if (extraProviders !== null && kcContext.pageId === "login-tessera-otp-start.ftl") {
     kcContext.social.providers = [
