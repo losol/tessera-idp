@@ -43,6 +43,9 @@ Provider ID: `tessera-otp`
 | code-alphabet | `0123456789` | Characters used to generate the code |
 | altcha-hmac-key | *(blank)* | HMAC secret for the ALTCHA proof-of-work on the email step. Blank disables the captcha entirely |
 | altcha-cost | 5000 | PBKDF2 iterations per ALTCHA attempt. Higher is more work for bots and a slower solve on slow phones; applies to challenges issued after the change |
+| review-accounts | *(blank)* | Fixed login codes for prepared review accounts, `email=code` entries separated by commas or newlines; codes at least 8 digits, users must exist. No email is sent to these addresses. Off unless the next two are also set. See [docs/review-accounts.md](../../docs/review-accounts.md) |
+| review-client-ids | *(blank)* | The only client IDs the review codes work for (exact match) |
+| review-valid-until | *(blank)* | When the review codes stop working: `2026-12-01` (whole day, UTC) or `2026-12-01T12:00:00Z` |
 
 ## Flow
 

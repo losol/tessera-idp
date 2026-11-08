@@ -9,7 +9,9 @@ an optimized runtime:
 - **`themes/ratio/`** — the Ratio login theme, built with [Keycloakify](https://www.keycloakify.dev/).
 
 Google and Apple login, and how social logins join existing accounts, are
-described in [docs/social-login.md](docs/social-login.md).
+described in [docs/social-login.md](docs/social-login.md). A fixed login code
+for an app store reviewer's account, limited to one client and a date, is
+described in [docs/review-accounts.md](docs/review-accounts.md).
 
 Grouped under `plugins/` and `themes/` so more providers or themes can be added
 without cluttering the repo root.
