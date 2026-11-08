@@ -21,6 +21,11 @@
  * params stand in for texts Keycloak resolved from Realm settings →
  * Localization, so a `${key}` reference in a client text can be rendered.
  *
+ * `?attr.<name>=` params set any other client attribute (e.g.
+ * `attr.ratio.layout=split`, `attr.ratio.help-url=https://…`), and
+ * `?clientName=` / `?clientUrl=` the client's name and base URL, so each
+ * per-client layout can be rendered.
+ *
  * An optional `?traceId=` param sets the error page's trace id, as Keycloak
  * does when tracing is enabled.
  *
@@ -57,7 +62,10 @@ const realmTexts: Record<string, string> = {};
 for (const [name, value] of params) {
     if (name.startsWith("text.")) clientAttributes[TEXT_ATTRIBUTE_PREFIX + name.slice("text.".length)] = value;
     if (name.startsWith("realmText.")) realmTexts[name.slice("realmText.".length)] = value;
+    if (name.startsWith("attr.")) clientAttributes[name.slice("attr.".length)] = value;
 }
+const clientName = params.get("clientName");
+const clientUrl = params.get("clientUrl");
 
 const overrides: DeepPartial<KcContext> = {
     ...(locale !== null && {
@@ -70,8 +78,12 @@ const overrides: DeepPartial<KcContext> = {
             ]
         }
     }),
-    ...(Object.keys(clientAttributes).length !== 0 && {
-        client: { attributes: clientAttributes }
+    ...((Object.keys(clientAttributes).length !== 0 || clientName !== null || clientUrl !== null) && {
+        client: {
+            attributes: clientAttributes,
+            ...(clientName !== null && { name: clientName }),
+            ...(clientUrl !== null && { baseUrl: clientUrl })
+        }
     }),
     ...(traceId !== null && { traceId })
 };

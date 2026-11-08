@@ -292,3 +292,90 @@ test.describe("client texts", () => {
         await expect(page.locator("#social-github")).toHaveText("Continue with GitHub");
     });
 });
+
+// Per-client layout: `ratio.layout` (smoke/entry.tsx `?attr.ratio.layout=`).
+const LAYOUTS = ["card", "split", "column", "panel"];
+const LAYOUT_PAGES = ["login-tessera-otp-start.ftl", "login-tessera-otp-code.ftl", "login-update-profile.ftl", "error.ftl"];
+const VIEWPORTS = [
+    { name: "desktop", width: 1280, height: 800 },
+    { name: "phone", width: 390, height: 844 }
+];
+
+for (const layout of LAYOUTS) {
+    for (const pageId of LAYOUT_PAGES) {
+        for (const viewport of VIEWPORTS) {
+            test(`layout ${layout} renders ${pageId} on ${viewport.name}`, async ({ page }) => {
+                const errors: string[] = [];
+                page.on("pageerror", err => errors.push(err.message));
+                await page.setViewportSize({ width: viewport.width, height: viewport.height });
+
+                const query = new URLSearchParams({ pageId, clientName: "Eventuras" });
+                query.set("attr.ratio.layout", layout);
+                await page.goto(`/smoke/index.html?${query.toString()}`);
+                await expect(page.locator(".ratio-login__card")).toBeVisible({ timeout: 10000 });
+                await expect(page.locator(`.ratio-login__page--${layout}`)).toHaveCount(1);
+                await expect(page.locator(".ratio-login__title")).toBeVisible();
+
+                // One page title (h1) per page, whatever the layout.
+                await expect(page.locator("h1")).toHaveCount(1);
+
+                // Nothing pushes the page sideways on a phone.
+                const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+                expect(overflow, "horizontal overflow").toBeLessThanOrEqual(0);
+
+                expect(errors).toEqual([]);
+            });
+        }
+    }
+}
+
+test("an unknown layout falls back to the card", async ({ page }) => {
+    await page.goto("/smoke/index.html?pageId=login-tessera-otp-start.ftl&attr.ratio.layout=__proto__");
+    await expect(page.locator(".ratio-login__page--card")).toHaveCount(1);
+});
+
+test("split shows the brand texts, replaceable per client", async ({ page }) => {
+    const query = new URLSearchParams({ pageId: "login-tessera-otp-start.ftl" });
+    query.set("attr.ratio.layout", "split");
+    query.set("text.ratioBrandHeadline", "Én innlogging til kommunen.");
+    query.set("text.ratioBrandLead", "Søknader og meldinger på ett sted.");
+    await page.goto(`/smoke/index.html?${query.toString()}`);
+    const panel = page.locator(".ratio-login__brand-panel");
+    await expect(panel.locator(".ratio-login__headline")).toHaveText("Én innlogging til kommunen.");
+    await expect(panel.locator(".ratio-login__lead")).toHaveText("Søknader og meldinger på ett sted.");
+    // Empty by default: no eyebrow or note until a client sets them.
+    await expect(panel.locator(".ratio-login__eyebrow")).toHaveCount(0);
+    await expect(panel.locator(".ratio-login__note")).toHaveCount(0);
+});
+
+test("panel names the service and links back to it", async ({ page }) => {
+    await page.goto("/smoke/index.html?pageId=login-tessera-otp-start.ftl&attr.ratio.layout=panel&clientName=Eventuras&clientUrl=https://example.org/");
+    const context = page.locator(".ratio-login__context");
+    await expect(context.locator(".ratio-login__context-name")).toHaveText("Eventuras");
+    await expect(context.locator("a")).toHaveAttribute("href", "https://example.org/");
+    await expect(context.locator("a")).toHaveText("Back to Eventuras");
+});
+
+test("panel leaves out a back link that is not http(s)", async ({ page }) => {
+    await page.goto("/smoke/index.html?pageId=login-tessera-otp-start.ftl&attr.ratio.layout=panel&clientName=Eventuras&clientUrl=javascript:alert(1)");
+    await expect(page.locator(".ratio-login__context a")).toHaveCount(0);
+});
+
+test("footer links appear only for http(s) URLs", async ({ page }) => {
+    const query = new URLSearchParams({ pageId: "login-tessera-otp-start.ftl" });
+    query.set("attr.ratio.help-url", "https://example.org/help");
+    query.set("attr.ratio.privacy-url", "javascript:alert(1)");
+    await page.goto(`/smoke/index.html?${query.toString()}`);
+    const links = page.locator(".ratio-login__links a");
+    await expect(links).toHaveCount(1);
+    await expect(links).toHaveText("Help");
+    await expect(links).toHaveAttribute("href", "https://example.org/help");
+});
+
+test("the page links the Tessera favicon", async ({ page, request }) => {
+    await page.goto("/smoke/index.html?pageId=login-tessera-otp-start.ftl");
+    await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveAttribute("href", "/favicon.svg");
+    for (const path of ["/favicon.svg", "/favicon-32x32.png", "/apple-touch-icon.png"]) {
+        expect((await request.get(path)).status(), path).toBe(200);
+    }
+});

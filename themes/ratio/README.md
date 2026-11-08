@@ -26,7 +26,7 @@ npm run dev        # Vite dev server — preview a page by uncommenting the
 Source lives in `src/login/`:
 
 - `KcPage.tsx` — page router (switches on `kcContext.pageId`)
-- `Template.tsx` — shared shell (card, brand, footer)
+- `Template.tsx` — shared shell in four layouts (see [Layout per client](#layout-per-client))
 - `pages/` — per-page components (e.g. `Login.tsx`)
 - `ProviderIcon.tsx` — brand marks for the Google, Apple and GitHub buttons
 - `main.css` — imports Ratio CSS + fonts and the login layout
@@ -89,6 +89,60 @@ client (Admin console: Clients → the client → Advanced → Attributes, or
   a font file is only downloaded when a theme uses it.
 
 Preview in the smoke harness with `?pageId=login-tessera-otp-start.ftl&theme=bureau&scheme=dark`.
+
+## Layout per client
+
+The client attribute `ratio.layout` picks the page layout:
+
+| Value | Layout |
+| --- | --- |
+| `card` (default) | A centred card, as before. |
+| `split` | A brand panel in the theme's primary colour beside the form; on a phone it becomes a band above it. |
+| `column` | One calm column under a slim top bar with the realm name, no card. |
+| `panel` | The form in an edge panel; beside it, the service you sign in to (the client's name, description and a link back). |
+
+Two more attributes add footer links, in every layout. A value that is not
+an absolute `https://` or `http://` URL is left out.
+
+| Attribute | Link |
+| --- | --- |
+| `ratio.help-url` | "Help" |
+| `ratio.privacy-url` | "Privacy" |
+
+The layouts show a few texts of their own. All of them can be set per client
+like any other text (`ratio.text.<key>`, below); the empty ones stay hidden
+until a client sets them.
+
+| Key | Where | Default |
+| --- | --- | --- |
+| `ratioBrandEyebrow` | small label above the headline (`split`, `column`, `panel` without a client name) | empty |
+| `ratioBrandHeadline` | the big line in the brand panel (`split`, `panel` without a client name) | "One sign-in for all your services." |
+| `ratioBrandLead` | a sentence under the headline or the page title | empty |
+| `ratioFooterNote` | a short note, e.g. who runs the sign-in | empty |
+| `ratioSigningInTo`, `ratioBackTo` | "You are signing in to" / "Back to {0}" (`panel`) | |
+| `ratioHelp`, `ratioPrivacy` | the footer link labels | "Help" / "Privacy" |
+
+The `panel` layout reads the client's **Name** and **Description** (Clients →
+the client → Settings); both may be `${key}` references to realm localization.
+Without a name it shows the brand headline instead.
+
+```json
+"attributes": {
+  "ratio.layout": "split",
+  "ratio.theme": "standard",
+  "ratio.help-url": "https://example.org/help",
+  "ratio.text.ratioBrandHeadline.nb": "Én innlogging til alle tjenestene i kommunen."
+}
+```
+
+Preview in the smoke harness with
+`?pageId=login-tessera-otp-start.ftl&attr.ratio.layout=panel&clientName=Eventuras`.
+
+## Favicon
+
+`public/favicon.svg` is the Tessera mark: four mosaic tiles on Linseed blue,
+one in ochre. `favicon-32x32.png` and `apple-touch-icon.png` are rendered
+from it; regenerate them if the SVG changes.
 
 ## Texts per client
 
