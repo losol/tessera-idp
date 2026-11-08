@@ -9,6 +9,7 @@ import org.keycloak.broker.provider.AbstractIdentityProviderFactory;
 import org.keycloak.broker.social.SocialIdentityProviderFactory;
 import org.keycloak.models.IdentityProviderModel;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.provider.ProviderConfigurationBuilder;
 
@@ -34,6 +35,13 @@ public class AppleIdentityProviderFactory extends AbstractIdentityProviderFactor
     @Override
     public String getId() {
         return PROVIDER_ID;
+    }
+
+    @Override
+    public void postInit(KeycloakSessionFactory factory) {
+        // Model events are independent of realm event-listener settings and
+        // of whether user/admin event persistence is enabled.
+        factory.register(new AppleUserRemovalListener());
     }
 
     @Override

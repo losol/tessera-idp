@@ -91,6 +91,14 @@
             <version>6.1.3</version>
             <scope>test</scope>
         </dependency>
+        <!-- Keycloak supplies the REST runtime in production. Provider tests
+             need its RuntimeDelegate too (version from Keycloak 26.8.2). -->
+        <dependency>
+            <groupId>org.jboss.resteasy</groupId>
+            <artifactId>resteasy-core</artifactId>
+            <version>6.2.19.Final</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -101,6 +109,11 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.6.1</version>
+                <configuration>
+                    <systemPropertyVariables>
+                        <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+                    </systemPropertyVariables>
+                </configuration>
             </plugin>
 
             <!-- Shade altcha (+ the android-json org.json impl) into the provider
