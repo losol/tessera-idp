@@ -40,6 +40,20 @@ public class TesseraOtpAuthenticatorFactory implements AuthenticatorFactory {
                     ProviderConfigProperty.STRING_TYPE,
                     TesseraOtpAuthenticator.DEFAULT_ALPHABET),
             new ProviderConfigProperty(
+                    ReviewAccounts.ACCOUNTS,
+                    "Review Accounts",
+                    "Secret comma- or newline-separated exact email=code entries. Codes must have at least "
+                            + "8 digits. Blank disables review accounts. Existing users only; no email is sent.",
+                    ProviderConfigProperty.PASSWORD,
+                    ""),
+            new ProviderConfigProperty(
+                    ReviewAccounts.CLIENTS,
+                    "Review Client IDs",
+                    "Optional comma- or whitespace-separated exact client IDs allowed for review accounts. "
+                            + "Blank allows all clients. Does not restrict ordinary email login.",
+                    ProviderConfigProperty.STRING_TYPE,
+                    ""),
+            new ProviderConfigProperty(
                     "altcha-hmac-key",
                     "ALTCHA HMAC Key",
                     "HMAC secret enabling the ALTCHA proof-of-work captcha on the email step. "

@@ -6,6 +6,7 @@ package no.losol.keycloak.tessera;
 
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
+import org.jboss.logging.Logger;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
@@ -58,6 +59,7 @@ import java.util.regex.Pattern;
  * ({@link #AUTH_NOTE_EMAIL}) so the action handler knows which step it is on.
  */
 public class TesseraOtpAuthenticator implements Authenticator {
+    private static final Logger LOG = Logger.getLogger(TesseraOtpAuthenticator.class);
 
     // The only auth-session note we still keep: which email this browser session
     // is currently verifying. The code/attempts live in SingleUseObjectProvider.
@@ -73,6 +75,7 @@ public class TesseraOtpAuthenticator implements Authenticator {
     private static final String NOTE_CODE = "code";
     private static final String NOTE_ATTEMPTS = "attempts";
     private static final String NOTE_EXPIRES_AT = "expiresAt";
+    private static final String NOTE_REVIEW = "review";
 
     // Max wrong code entries before the code is invalidated and the user must
     // request a new one. Brute-force cap (constant-time compare aside).
@@ -132,15 +135,15 @@ public class TesseraOtpAuthenticator implements Authenticator {
     public void action(AuthenticationFlowContext context) {
         AuthenticationSessionModel session = context.getAuthenticationSession();
 
-        // "Wrong email, go back": clear the pending email note and the
-        // cross-session code/throttle state for that email, then re-show the
-        // email form regardless of which step we are on.
+        // "Wrong email, go back": clear the pending email/user and re-show the
+        // email form. Review attempt records survive until their expiry.
         MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
         if (formData.containsKey(RESET_FORM_FIELD)) {
             String pendingEmail = session.getAuthNote(AUTH_NOTE_EMAIL);
-            if (pendingEmail != null) {
+            if (pendingEmail != null && !isReviewState(context, pendingEmail)) {
                 clearOtpState(context, pendingEmail);
             }
+            context.clearUser();
             session.removeAuthNote(AUTH_NOTE_EMAIL);
             Response challenge = withAltchaChallenge(context, context.form()).createForm(START_TEMPLATE);
             context.challenge(challenge);
@@ -197,11 +200,14 @@ public class TesseraOtpAuthenticator implements Authenticator {
             return;
         }
 
-        email = email.trim().toLowerCase();
+        email = email.trim().toLowerCase(Locale.ROOT);
 
         // Look up the user, but do NOT create one yet — an account is only
         // created once the OTP has proven ownership of the address (step 2).
         UserModel user = findUserByEmail(context.getSession(), context.getRealm(), email);
+        String reviewCode = reviewCode(context, email);
+        boolean review = reviewCode != null;
+        if (review && !checkReviewUser(context, user, email)) return;
 
         AuthenticationSessionModel session = context.getAuthenticationSession();
         SingleUseObjectProvider store = context.getSession().getProvider(SingleUseObjectProvider.class);
@@ -214,8 +220,9 @@ public class TesseraOtpAuthenticator implements Authenticator {
         // This stops repeated submits (same or new session) from flooding mail,
         // while a legitimate reload still lands on a working code page.
         Map<String, String> existing = store.get(codeKey);
-        boolean validCodeExists = existing != null && !isStoredCodeExpired(existing);
-        if (validCodeExists && store.contains(throttleKey)) {
+        boolean validCodeExists = existing != null && !isStoredCodeExpired(existing)
+                && review == "true".equals(existing.get(NOTE_REVIEW));
+        if (validCodeExists && (review || store.contains(throttleKey))) {
             session.setAuthNote(AUTH_NOTE_EMAIL, email);
             // Tell the user why no new mail was sent — the earlier code still works.
             Response challenge = context.form()
@@ -228,14 +235,15 @@ public class TesseraOtpAuthenticator implements Authenticator {
 
         // Otherwise generate, store and send a fresh code, and arm the throttle.
         int lifetime = getConfigInt(context, "code-lifetime", DEFAULT_LIFETIME_SECONDS);
-        String otp = generateOtp(context);
+        // The fixed secret stays in config, never in the shared challenge store.
+        String otp = review ? "" : generateOtp(context);
         long expiresAt = System.currentTimeMillis() / 1000 + lifetime;
-        putCode(store, codeKey, otp, 0, expiresAt, lifetime);
+        putCode(store, codeKey, otp, 0, expiresAt, lifetime, review);
         armThrottle(store, throttleKey);
         session.setAuthNote(AUTH_NOTE_EMAIL, email);
 
         try {
-            sendOtp(context, user, email, otp);
+            if (!review) sendOtp(context, user, email, otp);
         } catch (Exception e) {
             context.failureChallenge(AuthenticationFlowError.INTERNAL_ERROR,
                     context.form().setError("tesseraOtpSendFailed").createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
@@ -251,6 +259,9 @@ public class TesseraOtpAuthenticator implements Authenticator {
     private void handleOtpSubmission(AuthenticationFlowContext context, String pendingEmail) {
         MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
         String enteredOtp = formData.getFirst(OTP_FORM_FIELD);
+        String reviewCode = reviewCode(context, pendingEmail);
+        if (reviewCode != null && !checkReviewUser(context,
+                findUserByEmail(context.getSession(), context.getRealm(), pendingEmail), pendingEmail)) return;
 
         SingleUseObjectProvider store = context.getSession().getProvider(SingleUseObjectProvider.class);
         String codeKey = codeKey(context, pendingEmail);
@@ -269,7 +280,8 @@ public class TesseraOtpAuthenticator implements Authenticator {
         // No code, or the original expiry passed: the user must request a new
         // one. The throttle naturally lapses with the code so they can resubmit
         // the email (or use the "go back" link).
-        if (stored == null || isStoredCodeExpired(stored)) {
+        boolean review = stored != null && "true".equals(stored.get(NOTE_REVIEW));
+        if (stored == null || isStoredCodeExpired(stored) || review != (reviewCode != null)) {
             clearOtpState(context, pendingEmail);
             Response challenge = context.form()
                     .setAttribute("sentToEmail", pendingEmail)
@@ -279,7 +291,7 @@ public class TesseraOtpAuthenticator implements Authenticator {
             return;
         }
 
-        String expectedOtp = stored.get(NOTE_CODE);
+        String expectedOtp = review ? reviewCode : stored.get(NOTE_CODE);
         int attempts = parseIntSafe(stored.get(NOTE_ATTEMPTS), 0);
         long expiresAt = parseLongSafe(stored.get(NOTE_EXPIRES_AT), 0);
 
@@ -295,8 +307,8 @@ public class TesseraOtpAuthenticator implements Authenticator {
             return;
         }
 
-        // Count this attempt up-front. Once the cap is exceeded, invalidate the
-        // code entirely so neither this nor any other session can keep guessing.
+        // Count this attempt up-front. Once the cap is exceeded, reject the
+        // code so neither this nor any other session can keep guessing.
         // The read-modify-write is best-effort under heavy concurrency
         // (SingleUseObjectProvider has no atomic increment); brute-force is
         // bounded primarily by the 6-digit space + short expiry + the send
@@ -304,7 +316,9 @@ public class TesseraOtpAuthenticator implements Authenticator {
         // with this per-code counter as a secondary cap.
         attempts++;
         if (attempts > MAX_ATTEMPTS) {
-            clearOtpState(context, pendingEmail);
+            // A fixed credential must not get a fresh attempt budget by going
+            // back or opening another browser. Keep its exhausted record to expiry.
+            if (!review) clearOtpState(context, pendingEmail);
             Response challenge = context.form()
                     .setAttribute("sentToEmail", pendingEmail)
                     .setError("tesseraOtpTooManyAttempts")
@@ -331,7 +345,7 @@ public class TesseraOtpAuthenticator implements Authenticator {
                 context.failureChallenge(AuthenticationFlowError.EXPIRED_CODE, challenge);
                 return;
             }
-            putCode(store, codeKey, expectedOtp, attempts, expiresAt, remaining);
+            putCode(store, codeKey, review ? "" : expectedOtp, attempts, expiresAt, remaining, review);
             Response challenge = context.form()
                     .setAttribute("sentToEmail", pendingEmail)
                     .setError("tesseraOtpInvalid")
@@ -346,7 +360,7 @@ public class TesseraOtpAuthenticator implements Authenticator {
         clearOtpState(context, pendingEmail);
 
         UserModel user = findUserByEmail(context.getSession(), context.getRealm(), pendingEmail);
-        if (user == null) {
+        if (user == null && !review) {
             try {
                 user = context.getSession().users().addUser(context.getRealm(), pendingEmail);
                 user.setEmail(pendingEmail);
@@ -366,7 +380,45 @@ public class TesseraOtpAuthenticator implements Authenticator {
 
         context.getAuthenticationSession().removeAuthNote(AUTH_NOTE_EMAIL);
         context.setUser(user);
+        if (review) LOG.infof("Review-account login: email=%s realm=%s client=%s", pendingEmail,
+                context.getRealm().getName(), context.getAuthenticationSession().getClient().getClientId());
         context.success();
+    }
+
+    private String reviewCode(AuthenticationFlowContext context, String email) {
+        return ReviewAccounts.parse(getConfigString(context, ReviewAccounts.ACCOUNTS, "")).get(email);
+    }
+
+    private boolean isReviewState(AuthenticationFlowContext context, String email) {
+        if (email == null) return false;
+        Map<String, String> stored = context.getSession().getProvider(SingleUseObjectProvider.class)
+                .get(codeKey(context, email));
+        return stored != null && "true".equals(stored.get(NOTE_REVIEW));
+    }
+
+    private boolean checkReviewUser(AuthenticationFlowContext context, UserModel user, String email) {
+        var client = context.getAuthenticationSession().getClient();
+        AuthenticationFlowError error = null;
+        if (!ReviewAccounts.allowsClient(getConfigString(context, ReviewAccounts.CLIENTS, ""),
+                client == null ? null : client.getClientId())) {
+            error = AuthenticationFlowError.INVALID_CREDENTIALS;
+        } else if (user == null || !email.equalsIgnoreCase(user.getEmail())) {
+            error = AuthenticationFlowError.INVALID_USER;
+        } else if (!user.isEnabled()) {
+            error = AuthenticationFlowError.USER_DISABLED;
+        } else {
+            // Attach before failureChallenge so Keycloak attributes incorrect
+            // guesses to this account in its realm brute-force protection.
+            context.setUser(user);
+            if (context.getRealm().isBruteForceProtected()
+                    && (context.getProtector().isTemporarilyDisabled(context.getSession(), context.getRealm(), user)
+                    || context.getProtector().isPermanentlyLockedOut(context.getSession(), context.getRealm(), user))) {
+                error = AuthenticationFlowError.USER_TEMPORARILY_DISABLED;
+            }
+        }
+        if (error == null) return true;
+        context.failureChallenge(error, context.form().setError("tesseraOtpInvalid").createForm(OTP_TEMPLATE));
+        return false;
     }
 
     private UserModel findUserByEmail(KeycloakSession session, RealmModel realm, String email) {
@@ -504,11 +556,12 @@ public class TesseraOtpAuthenticator implements Authenticator {
      * {@code expiresAt} note so attempt re-puts never extend the real lifetime.
      */
     private void putCode(SingleUseObjectProvider store, String key, String code,
-                         int attempts, long expiresAt, long lifespan) {
+                         int attempts, long expiresAt, long lifespan, boolean review) {
         Map<String, String> notes = new HashMap<>();
         notes.put(NOTE_CODE, code);
         notes.put(NOTE_ATTEMPTS, String.valueOf(attempts));
         notes.put(NOTE_EXPIRES_AT, String.valueOf(expiresAt));
+        if (review) notes.put(NOTE_REVIEW, "true");
         store.remove(key);
         store.put(key, Math.max(1, lifespan), notes);
     }

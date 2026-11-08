@@ -41,6 +41,8 @@ Provider ID: `tessera-otp`
 | code-length | 6 | Characters in OTP code |
 | code-lifetime | 300 | Code validity in seconds |
 | code-alphabet | `0123456789` | Characters used to generate the code |
+| review-accounts | *(blank)* | Secret comma- or newline-separated exact `email=code` entries for existing prepared review users. Codes require at least 8 ASCII digits. Blank disables the feature. See [review accounts](../../docs/review-accounts.md) |
+| review-client-ids | *(blank)* | Optional comma- or whitespace-separated exact, case-sensitive client IDs allowed for review accounts. Blank allows all clients; ordinary addresses are unaffected |
 | altcha-hmac-key | *(blank)* | HMAC secret for the ALTCHA proof-of-work on the email step. Blank disables the captcha entirely |
 | altcha-cost | 5000 | PBKDF2 iterations per ALTCHA attempt. Higher is more work for bots and a slower solve on slow phones; applies to challenges issued after the change |
 

@@ -10,6 +10,8 @@ an optimized runtime:
 
 Google and Apple login, and how social logins join existing accounts, are
 described in [docs/social-login.md](docs/social-login.md).
+Prepared accounts for App Review can use a fixed email code; see
+[docs/review-accounts.md](docs/review-accounts.md) for secret configuration and removal.
 
 Grouped under `plugins/` and `themes/` so more providers or themes can be added
 without cluttering the repo root.
