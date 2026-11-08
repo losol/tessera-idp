@@ -5,7 +5,8 @@
  * and zero uncaught page errors. Guards against the "blank white login page"
  * class of runtime-render regressions that a JAR build cannot catch.
  */
-import { test, expect } from "@playwright/test";
+import { readFile } from "node:fs/promises";
+import { test, expect, type Page } from "@playwright/test";
 
 const PAGE_IDS = ["login.ftl", "login-tessera-otp-start.ftl", "login-tessera-otp-code.ftl", "login-update-profile.ftl", "error.ftl"];
 
@@ -290,6 +291,194 @@ test.describe("client texts", () => {
         await page.goto(start);
         await expect(page.locator(".ratio-login__title")).toHaveText("Sign in");
         await expect(page.locator("#social-github")).toHaveText("Continue with GitHub");
+    });
+});
+
+// Client texts on the pages keycloakify renders. Its profile form labels the
+// standard fields with `${firstName}`-style references (advancedMsg), so
+// `ratio.text.firstName` must reach them like any other text.
+test.describe("client texts on keycloakify's pages", () => {
+    const url = (pageId: string, params: Record<string, string>) => {
+        const query = new URLSearchParams({ pageId });
+        for (const [name, value] of Object.entries(params)) query.set(name, value);
+        return `/smoke/index.html?${query.toString()}`;
+    };
+    const profile = (params: Record<string, string>) => url("login-update-profile.ftl", params);
+    const label = (page: Page, field: string) => page.locator(`label[for="${field}"]`);
+    const injected = (page: Page) => page.evaluate(() => (window as { __ratioInjected?: number }).__ratioInjected);
+
+    test("replace a standard profile field label", async ({ page }) => {
+        await page.goto(profile({ "text.firstName": "Fornavn" }));
+        await expect(label(page, "firstName")).toHaveText("Fornavn");
+        await expect(label(page, "lastName")).toHaveText("Last name");
+    });
+
+    test("prefer the field label for the current language", async ({ page }) => {
+        await page.goto(profile({ locale: "nb", "text.firstName": "Given name", "text.firstName.nb": "Ditt fornavn" }));
+        await expect(label(page, "firstName")).toHaveText("Ditt fornavn");
+        // The theme's own Norwegian text is left alone.
+        await expect(label(page, "lastName")).toHaveText("Etternavn");
+    });
+
+    test("resolve a ${key} field label from realm localization, or fall back", async ({ page }) => {
+        await page.goto(
+            profile({
+                "text.firstName": "${losvikGivenName}",
+                "realmText.losvikGivenName": "Fornavn",
+                "text.lastName": "${noSuchKey}",
+                "text.email": "  "
+            })
+        );
+        await expect(label(page, "firstName")).toHaveText("Fornavn");
+        await expect(label(page, "lastName")).toHaveText("Last name");
+        await expect(label(page, "email")).toHaveText("Email");
+    });
+
+    // Keycloak's "Minimal length is {1}." gets the length as its first
+    // argument; a client text numbers its placeholders the same way.
+    for (const [text, expected] of [
+        ["Minst {1} tegn.", "Minst 3 tegn."],
+        ["${losvikTooShort}", "Brukernavnet må ha minst 3 tegn."]
+    ]) {
+        test(`fill a field error's arguments (${text})`, async ({ page }) => {
+            await page.goto(
+                profile({
+                    "text.error-invalid-length-too-short": text,
+                    "realmText.losvikTooShort": "Brukernavnet må ha minst {1} tegn."
+                })
+            );
+            await page.locator("#username").fill("ab");
+            await page.locator("#username").blur();
+            await expect(page.locator("#input-error-username")).toHaveText(expected);
+        });
+    }
+
+    test("render markup in a field label as plain text", async ({ page }) => {
+        const markup = '<b id="injected">Fornavn</b><img src="data:," onerror="window.__ratioInjected = 1">';
+        await page.goto(profile({ "text.firstName": markup }));
+        await expect(label(page, "firstName")).toHaveText(markup);
+        await expect(page.locator("#injected, #kc-content img")).toHaveCount(0);
+        expect(await injected(page)).toBeUndefined();
+    });
+
+    // advancedMsgStr: the panel layout names the client, which may be a
+    // `${key}` reference.
+    test("name the client from a client text", async ({ page }) => {
+        await page.goto(
+            url("login-tessera-otp-start.ftl", {
+                "attr.ratio.layout": "panel",
+                clientName: "${losvikService}",
+                clientUrl: "https://example.org/",
+                "text.losvikService": "<i>Min side</i>"
+            })
+        );
+        await expect(page.locator(".ratio-login__context-name")).toHaveText("<i>Min side</i>");
+        await expect(page.locator(".ratio-login__context a")).toHaveText("Back to <i>Min side</i>");
+        await expect(page.locator(".ratio-login__context i")).toHaveCount(0);
+    });
+
+    // The info and consent pages build HTML from advancedMsgStr (the required
+    // actions, the client name in the title). A client text must not end up
+    // there as markup.
+    test("keep client texts out of the info page's required actions", async ({ page }) => {
+        await page.goto(
+            url("info.ftl", {
+                requiredActions: "UPDATE_PASSWORD",
+                "text.requiredAction.UPDATE_PASSWORD": "<i>Nytt passord</i>"
+            })
+        );
+        await expect(page.locator("#kc-info-message .instruction")).toContainText("Update Password");
+        await expect(page.locator("#kc-info-message i")).toHaveCount(0);
+    });
+
+    test("keep client texts out of the consent page's title", async ({ page }) => {
+        await page.goto(
+            url("login-oauth-grant.ftl", { clientName: "${losvikService}", "text.losvikService": "<i>Min side</i>" })
+        );
+        await expect(page.locator(".ratio-login__title")).toContainText("Grant Access to");
+        await expect(page.locator(".ratio-login__title i")).toHaveCount(0);
+    });
+});
+
+// Recovery-code setup (login-recovery-authn-code-config.ftl). Print writes a
+// sheet with three texts and the codes into a new window as HTML; Download
+// saves the same as a text file. A client text must print as typed (never
+// parsed as markup, never run) and download unchanged.
+test.describe("recovery codes", () => {
+    const pageId = "login-recovery-authn-code-config.ftl";
+    const header = "text.recovery-codes-download-file-header";
+    const markup =
+        '<b id="injected">Keep</b><img src="data:," onerror="parent.__ratioInjected = 1"><script>parent.__ratioInjected = 1</script>';
+    const stockDescription =
+        "Recovery codes are single-use passcodes that allow you to sign in to your account if you do not have access to your authenticator.";
+
+    const open = async (page: Page, params: Record<string, string>) => {
+        const query = new URLSearchParams({ pageId, ...params });
+        await page.goto(`/smoke/index.html?${query.toString()}`);
+        await expect(page.locator("#kc-recovery-codes-list li")).toHaveCount(3, { timeout: 10000 });
+    };
+
+    // window.open hands back a same-origin frame that stays open, so the sheet
+    // is parsed, and anything in it runs, as in the real print window.
+    const print = async (page: Page) => {
+        await page.evaluate(() => {
+            window.open = () => {
+                const frame = document.createElement("iframe");
+                frame.name = "print-sheet";
+                document.body.append(frame);
+                const sheet = frame.contentWindow!;
+                sheet.print = () => {};
+                sheet.close = () => {};
+                return sheet;
+            };
+        });
+        // Print may be wired up only once the page's translations are in.
+        await expect
+            .poll(async () => {
+                await page.locator("#printRecoveryCodes").click();
+                return page.locator('iframe[name="print-sheet"]').count();
+            })
+            .toBe(1);
+        return page.frameLocator('iframe[name="print-sheet"]');
+    };
+
+    test("print markup in a client text as text, never run it", async ({ page }) => {
+        await open(page, { [header]: markup });
+        const sheet = await print(page);
+        await expect(sheet.locator("p").first()).toHaveText(markup);
+        await expect(sheet.locator("b, img, script")).toHaveCount(0);
+        await expect(sheet.locator("div")).toContainText("code-123");
+        expect(await page.evaluate(() => (window as { __ratioInjected?: number }).__ratioInjected)).toBeUndefined();
+    });
+
+    test("print ordinary texts as written", async ({ page }) => {
+        const text = `Ta vare på kodene – «Tom & Jerry's» "trygge" sted`;
+        await open(page, { [header]: text });
+        const sheet = await print(page);
+        const paragraphs = sheet.locator("p");
+        await expect(paragraphs).toHaveCount(3);
+        await expect(paragraphs.nth(0)).toHaveText(text);
+        await expect(paragraphs.nth(1)).toHaveText(stockDescription);
+        await expect(paragraphs.nth(2)).toHaveText(/^These codes were generated on \S/);
+    });
+
+    test("print the stock texts in the page's language", async ({ page }) => {
+        await open(page, { locale: "de" });
+        const sheet = await print(page);
+        await expect(sheet.locator("p").first()).toHaveText(
+            "Bewahren Sie diese Wiederherstellungscodes an einem sicheren Ort auf."
+        );
+    });
+
+    test("download a client text unchanged", async ({ page }) => {
+        await open(page, { [header]: markup });
+        const download = page.waitForEvent("download");
+        await page.locator("#downloadRecoveryCodes").click();
+        const file = await (await download).path();
+        const content = await readFile(file, "utf8");
+        expect(content.startsWith(`${markup}\n\n1: code-123-\r\n`), content).toBe(true);
+        expect(content).toContain(`\n${stockDescription}\n\nThese codes were generated on `);
+        expect(await page.evaluate(() => (window as { __ratioInjected?: number }).__ratioInjected)).toBeUndefined();
     });
 });
 
