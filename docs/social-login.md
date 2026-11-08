@@ -34,7 +34,8 @@ Google's JWKS.
 | Trust email | on | New accounts get `emailVerified` from the provider's `email_verified` claim instead of being left unverified, and matching accounts can be linked without an email round trip. Both providers always send the claim. |
 | Sync mode | import | The provider fills the profile on first login and never overwrites what the user or an admin changed later. |
 | First login flow | `tessera first broker login` (below) | |
-| Store tokens | off | Nothing here calls Google or Apple APIs on the user's behalf. |
+| Store tokens | Google: off. **Apple: on** | Apple retains only the refresh token to revoke its authorization when the Los ID account is deleted; see [apple-login.md](apple-login.md#account-deletion-and-apple-token-revocation). |
+| Stored tokens readable | off | Apple denies broker token retrieval; the retained refresh token is private to account deletion. |
 
 ## First login flow
 

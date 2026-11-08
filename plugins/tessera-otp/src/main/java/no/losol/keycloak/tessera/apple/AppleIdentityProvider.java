@@ -8,8 +8,10 @@ import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.FormParam;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
+import jakarta.ws.rs.core.UriInfo;
 import org.keycloak.OAuth2Constants;
 import org.keycloak.broker.oidc.OIDCIdentityProvider;
 import org.keycloak.broker.oidc.OIDCIdentityProviderConfig;
@@ -19,11 +21,20 @@ import org.keycloak.broker.provider.IdentityBrokerException;
 import org.keycloak.broker.social.SocialIdentityProvider;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.http.simple.SimpleHttpRequest;
+import org.keycloak.models.ClientModel;
+import org.keycloak.models.FederatedIdentityModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserModel;
+import org.keycloak.models.UserSessionModel;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
+import org.keycloak.representations.AccessTokenResponse;
 import org.keycloak.representations.JsonWebToken;
+import org.keycloak.util.JsonSerialization;
 import org.keycloak.vault.VaultStringSecret;
+
+import java.io.IOException;
+import java.util.Map;
 
 /**
  * Sign in with Apple, on top of Keycloak's own OIDC broker. Apple is a
@@ -147,11 +158,53 @@ public class AppleIdentityProvider extends OIDCIdentityProvider implements Socia
     @Override
     public BrokeredIdentityContext getFederatedIdentity(String response) {
         BrokeredIdentityContext identity = super.getFederatedIdentity(response);
+        // Keycloak persists this field only with Store tokens enabled. Keep
+        // the deletion credential, not the access/ID tokens or profile claims.
+        if (Boolean.TRUE.equals(getConfig().isStoreToken())) {
+            identity.setToken(refreshTokenOnly(response));
+        }
         Object user = session.getAttribute(USER_SESSION_ATTRIBUTE);
         if (user instanceof String json) {
             AppleUser.applyName(identity, json);
         }
         return identity;
+    }
+
+    static String refreshTokenOnly(String response) {
+        try {
+            String refreshToken = JsonSerialization.readValue(response,
+                    AccessTokenResponse.class).getRefreshToken();
+            // An empty object lets Keycloak's returning-login merge preserve
+            // the previous refresh token when Apple omits a replacement.
+            return JsonSerialization.writeValueAsString(isBlank(refreshToken)
+                    ? Map.of() : Map.of(OAuth2Constants.REFRESH_TOKEN, refreshToken));
+        } catch (IOException e) {
+            throw new IdentityBrokerException("Could not decode Apple token response");
+        }
+    }
+
+    /** The stored credential is private to deletion, including for read-token holders. */
+    @Override
+    public Response retrieveToken(KeycloakSession session, FederatedIdentityModel identity) {
+        return Response.status(Response.Status.FORBIDDEN).build();
+    }
+
+    @Override
+    public Response retrieveToken(KeycloakSession session, FederatedIdentityModel identity,
+                                  UserSessionModel userSession, UserModel user) {
+        return Response.status(Response.Status.FORBIDDEN).build();
+    }
+
+    @Override
+    public Response exchangeFromToken(UriInfo uriInfo, EventBuilder event, ClientModel authorizedClient,
+                                      UserSessionModel userSession, UserModel user,
+                                      MultivaluedMap<String, String> params) {
+        return Response.status(Response.Status.FORBIDDEN).build();
+    }
+
+    @Override
+    protected boolean supportsExternalExchange() {
+        return false;
     }
 
     /**
