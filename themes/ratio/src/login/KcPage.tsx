@@ -3,10 +3,11 @@
 // SPDX-License-Identifier: MPL-2.0
 
 import "./main.css";
-import { Suspense, lazy, useLayoutEffect } from "react";
+import { Suspense, lazy, useLayoutEffect, useMemo } from "react";
 import type { ClassKey } from "keycloakify/login";
 import type { KcContext } from "./KcContext";
 import { useI18n } from "./i18n";
+import { withClientTexts } from "./clientTexts";
 import { applyRatioTheme, resolveRatioTheme } from "./ratioTheme";
 import DefaultPage from "keycloakify/login/DefaultPage";
 import Template from "./Template";
@@ -32,7 +33,11 @@ const doMakeUserConfirmPassword = true;
 export default function KcPage(props: { kcContext: KcContext }) {
     const { kcContext } = props;
 
-    const { i18n } = useI18n({ kcContext });
+    // The client's own texts (`ratio.text.*`, see clientTexts.tsx) go over the
+    // theme's messages for every page, the Template included.
+    const { i18n: themeI18n } = useI18n({ kcContext });
+    const clientAttributes = kcContext.client?.attributes;
+    const i18n = useMemo(() => withClientTexts(themeI18n, clientAttributes), [themeI18n, clientAttributes]);
 
     // The client's Ratio theme. Some pages (an unknown realm, a few error
     // pages) render without a client and keep the default.

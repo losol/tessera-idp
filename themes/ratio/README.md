@@ -90,6 +90,44 @@ client (Admin console: Clients → the client → Advanced → Attributes, or
 
 Preview in the smoke harness with `?pageId=login-tessera-otp-start.ftl&theme=bureau&scheme=dark`.
 
+## Texts per client
+
+Any text the login pages show can be replaced for one client with a client
+attribute named after its message key:
+
+| Attribute | Applies to |
+| --- | --- |
+| `ratio.text.<messageKey>` | every language |
+| `ratio.text.<messageKey>.<lang>` | one language, e.g. `.nb` or `.en`; wins over the line above |
+
+The value is either the text itself or `${realmKey}`, a reference to a text
+under Realm settings → Localization → Realm overrides, where Keycloak keeps one
+value per language. Use a reference when the realm offers several languages
+and you would rather keep the translations in one place.
+
+```json
+"attributes": {
+  "ratio.text.tesseraOtpEmailTitle.nb": "Logg inn på Min side",
+  "ratio.text.tesseraOtpEmailTitle.en": "Sign in to My page",
+  "ratio.text.tesseraContinueWith": "${losvikContinueWith}"
+}
+```
+
+- `{0}`, `{1}` … are filled in as in the theme's own messages, e.g.
+  `ratio.text.tesseraContinueWith` = `Bruk {0}` gives "Bruk GitHub".
+- **The texts are plain text.** Markup in an attribute shows as typed and is
+  never interpreted as HTML.
+- An empty value, an unknown key or a reference Keycloak cannot resolve falls
+  back to the theme's own text.
+
+The keys are the theme's messages in [`src/login/i18n.ts`](src/login/i18n.ts)
+(e.g. `tesseraOtpEmailTitle`, `tesseraOtpEmailInstruction`, `tesseraOtpUseCode`,
+`tesseraContinueWith`, `tesseraOtpTitle`, `tesseraOtpInstruction`) plus
+Keycloak's standard login messages (e.g. `loginTitle` for the browser tab,
+`doSubmit`, `errorTitle`).
+
+Preview in the smoke harness with `?pageId=login-tessera-otp-start.ftl&text.tesseraOtpEmailTitle=Hei`.
+
 ## Build
 
 ```bash

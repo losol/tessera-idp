@@ -236,3 +236,59 @@ test("tabula squares the provider buttons", async ({ page }) => {
     await expect(page.locator(".ratio-login__card")).toBeVisible({ timeout: 10000 });
     await expect(page.locator(".ratio-login__social-btn").first()).toHaveCSS("border-top-left-radius", "0px");
 });
+
+// Per-client texts: `ratio.text.<key>` (smoke/entry.tsx `?text.<key>=`).
+test.describe("client texts", () => {
+    const start = "/smoke/index.html?pageId=login-tessera-otp-start.ftl";
+    const card = (page: import("@playwright/test").Page) => page.locator(".ratio-login__card");
+
+    test("replace a theme text for the client", async ({ page }) => {
+        await page.goto(`${start}&text.tesseraOtpEmailTitle=${encodeURIComponent("Logg inn på Min side")}`);
+        await expect(page.locator(".ratio-login__title")).toHaveText("Logg inn på Min side");
+    });
+
+    test("fill {0} like the theme's own messages", async ({ page }) => {
+        await page.goto(`${start}&text.tesseraContinueWith=${encodeURIComponent("Bruk {0}")}`);
+        await expect(page.locator("#social-github")).toHaveText("Bruk GitHub");
+    });
+
+    test("prefer the text for the current language", async ({ page }) => {
+        const query = new URLSearchParams({ pageId: "login-tessera-otp-start.ftl", locale: "nb" });
+        query.set("text.tesseraOtpEmailTitle", "Sign in to My page");
+        query.set("text.tesseraOtpEmailTitle.nb", "Logg inn på Min side");
+        await page.goto(`/smoke/index.html?${query.toString()}`);
+        await expect(page.locator(".ratio-login__title")).toHaveText("Logg inn på Min side");
+    });
+
+    test("resolve a ${key} reference from realm localization", async ({ page }) => {
+        const query = new URLSearchParams({ pageId: "login-tessera-otp-start.ftl" });
+        query.set("text.tesseraOtpEmailTitle", "${losvikLoginTitle}");
+        query.set("realmText.losvikLoginTitle", "Velkommen til Losvik");
+        await page.goto(`/smoke/index.html?${query.toString()}`);
+        await expect(page.locator(".ratio-login__title")).toHaveText("Velkommen til Losvik");
+    });
+
+    test("fall back to the theme text for an unresolved reference or an empty value", async ({ page }) => {
+        const query = new URLSearchParams({ pageId: "login-tessera-otp-start.ftl" });
+        query.set("text.tesseraOtpEmailTitle", "${noSuchKey}");
+        query.set("text.tesseraOtpUseCode", "  ");
+        await page.goto(`/smoke/index.html?${query.toString()}`);
+        await expect(page.locator(".ratio-login__title")).toHaveText("Sign in");
+        await expect(page.locator(".ratio-login__textlink")).toHaveText("Log in with a one-time code");
+    });
+
+    test("render markup in a client text as plain text", async ({ page }) => {
+        const errors: string[] = [];
+        page.on("pageerror", err => errors.push(err.message));
+        await page.goto(`${start}&text.tesseraOtpEmailTitle=${encodeURIComponent('<img src=x onerror="alert(1)">Hi')}`);
+        await expect(page.locator(".ratio-login__title")).toHaveText('<img src=x onerror="alert(1)">Hi');
+        await expect(card(page).locator("img")).toHaveCount(0);
+        expect(errors).toEqual([]);
+    });
+
+    test("leave the default page untouched without client texts", async ({ page }) => {
+        await page.goto(start);
+        await expect(page.locator(".ratio-login__title")).toHaveText("Sign in");
+        await expect(page.locator("#social-github")).toHaveText("Continue with GitHub");
+    });
+});
