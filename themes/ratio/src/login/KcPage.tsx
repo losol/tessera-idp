@@ -18,6 +18,7 @@ const Login = lazy(() => import("./pages/Login"));
 const LoginTesseraOtpStart = lazy(() => import("./pages/LoginTesseraOtpStart"));
 const LoginTesseraOtpCode = lazy(() => import("./pages/LoginTesseraOtpCode"));
 const ErrorPage = lazy(() => import("./pages/Error"));
+const LoginRecoveryAuthnCodeConfig = lazy(() => import("./pages/LoginRecoveryAuthnCodeConfig"));
 
 // Ratio's base CSS hides <html> (opacity: 0) until a data-theme is set; that
 // attribute also activates the light/dark design tokens (--primary, --text, …).
@@ -37,7 +38,10 @@ export default function KcPage(props: { kcContext: KcContext }) {
     // theme's messages for every page, the Template included.
     const { i18n: themeI18n } = useI18n({ kcContext });
     const clientAttributes = kcContext.client?.attributes;
-    const i18n = useMemo(() => withClientTexts(themeI18n, clientAttributes), [themeI18n, clientAttributes]);
+    const i18n = useMemo(
+        () => withClientTexts(themeI18n, clientAttributes, kcContext.pageId),
+        [themeI18n, clientAttributes, kcContext.pageId]
+    );
 
     // The client's Ratio theme. Some pages (an unknown realm, a few error
     // pages) render without a client and keep the default.
@@ -95,6 +99,18 @@ export default function KcPage(props: { kcContext: KcContext }) {
                     case "error.ftl":
                         return (
                             <ErrorPage
+                                kcContext={kcContext}
+                                i18n={i18n}
+                                classes={classes}
+                                Template={Template}
+                                doUseDefaultCss={false}
+                            />
+                        );
+                    // keycloakify's page, with client texts kept as text on
+                    // the print sheet (see the page).
+                    case "login-recovery-authn-code-config.ftl":
+                        return (
+                            <LoginRecoveryAuthnCodeConfig
                                 kcContext={kcContext}
                                 i18n={i18n}
                                 classes={classes}

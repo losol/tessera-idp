@@ -17,7 +17,9 @@ Theme — themes/ratio  (keycloak-ratio-theme.jar)
     https://www.npmjs.com/package/@eventuras/ratio-ui
 
 Keycloakify — build tooling; the generated bootstrap (src/kc.gen.tsx) and the
-initial project scaffolding derive from keycloakify / keycloakify-starter.
+initial project scaffolding derive from keycloakify / keycloakify-starter, and
+the recovery-code setup page (src/login/pages/LoginRecoveryAuthnCodeConfig.tsx)
+is adapted from keycloakify's own.
     Copyright the Keycloakify authors
     SPDX-License-Identifier: MIT
     https://www.keycloakify.dev/
