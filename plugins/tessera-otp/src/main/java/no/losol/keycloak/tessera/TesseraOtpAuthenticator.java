@@ -6,6 +6,7 @@ package no.losol.keycloak.tessera;
 
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
+import org.jboss.logging.Logger;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
@@ -27,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.text.MessageFormat;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -56,8 +58,17 @@ import java.util.regex.Pattern;
  * </ul>
  * Only the email being verified is kept in the auth session
  * ({@link #AUTH_NOTE_EMAIL}) so the action handler knows which step it is on.
+ *
+ * <h2>Fixed review codes</h2>
+ * A prepared account (an app store reviewer's, say) can be given a temporary
+ * fixed code for one client, see {@link ReviewAccess}. Its record in the store
+ * carries {@link #NOTE_REVIEW} and no code: step 1 sends no email, step 2
+ * compares against the configured code and attaches the account before a
+ * failure, so realm brute force protection counts wrong guesses against it.
+ * Everything else (expiry, attempts, throttle) is the ordinary path.
  */
 public class TesseraOtpAuthenticator implements Authenticator {
+    private static final Logger LOG = Logger.getLogger(TesseraOtpAuthenticator.class);
 
     // The only auth-session note we still keep: which email this browser session
     // is currently verifying. The code/attempts live in SingleUseObjectProvider.
@@ -73,6 +84,9 @@ public class TesseraOtpAuthenticator implements Authenticator {
     private static final String NOTE_CODE = "code";
     private static final String NOTE_ATTEMPTS = "attempts";
     private static final String NOTE_EXPIRES_AT = "expiresAt";
+    // "true" on a record whose code is the configured fixed review code
+    // (ReviewAccess) rather than an emailed one. The code itself is never stored.
+    private static final String NOTE_REVIEW = "review";
 
     // Max wrong code entries before the code is invalidated and the user must
     // request a new one. Brute-force cap (constant-time compare aside).
@@ -134,7 +148,9 @@ public class TesseraOtpAuthenticator implements Authenticator {
 
         // "Wrong email, go back": clear the pending email note and the
         // cross-session code/throttle state for that email, then re-show the
-        // email form regardless of which step we are on.
+        // email form regardless of which step we are on. A review account
+        // attached by a wrong fixed code is detached too, so the next address
+        // does not collide with it.
         MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
         if (formData.containsKey(RESET_FORM_FIELD)) {
             String pendingEmail = session.getAuthNote(AUTH_NOTE_EMAIL);
@@ -142,6 +158,7 @@ public class TesseraOtpAuthenticator implements Authenticator {
                 clearOtpState(context, pendingEmail);
             }
             session.removeAuthNote(AUTH_NOTE_EMAIL);
+            context.clearUser();
             Response challenge = withAltchaChallenge(context, context.form()).createForm(START_TEMPLATE);
             context.challenge(challenge);
             return;
@@ -203,6 +220,11 @@ public class TesseraOtpAuthenticator implements Authenticator {
         // created once the OTP has proven ownership of the address (step 2).
         UserModel user = findUserByEmail(context.getSession(), context.getRealm(), email);
 
+        // A prepared review account gets no email: step 2 checks its fixed
+        // code instead. Anything not fully in order falls back to the
+        // ordinary emailed code (see reviewCodeFor).
+        boolean review = reviewCodeFor(context, email, user) != null;
+
         AuthenticationSessionModel session = context.getAuthenticationSession();
         SingleUseObjectProvider store = context.getSession().getProvider(SingleUseObjectProvider.class);
         String codeKey = codeKey(context, email);
@@ -227,15 +249,18 @@ public class TesseraOtpAuthenticator implements Authenticator {
         }
 
         // Otherwise generate, store and send a fresh code, and arm the throttle.
+        // A review record stores no code at all; the fixed one stays in config.
         int lifetime = getConfigInt(context, "code-lifetime", DEFAULT_LIFETIME_SECONDS);
-        String otp = generateOtp(context);
+        String otp = review ? "" : generateOtp(context);
         long expiresAt = System.currentTimeMillis() / 1000 + lifetime;
-        putCode(store, codeKey, otp, 0, expiresAt, lifetime);
+        putCode(store, codeKey, otp, 0, expiresAt, lifetime, review);
         armThrottle(store, throttleKey);
         session.setAuthNote(AUTH_NOTE_EMAIL, email);
 
         try {
-            sendOtp(context, user, email, otp);
+            if (!review) {
+                sendOtp(context, user, email, otp);
+            }
         } catch (Exception e) {
             context.failureChallenge(AuthenticationFlowError.INTERNAL_ERROR,
                     context.form().setError("tesseraOtpSendFailed").createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
@@ -279,12 +304,18 @@ public class TesseraOtpAuthenticator implements Authenticator {
             return;
         }
 
-        String expectedOtp = stored.get(NOTE_CODE);
+        // A review record compares against the fixed code as configured NOW,
+        // so removing, rotating or expiring the config takes effect on an
+        // outstanding challenge too; the account must still qualify.
+        boolean review = "true".equals(stored.get(NOTE_REVIEW));
+        UserModel reviewUser = review ? findUserByEmail(context.getSession(), context.getRealm(), pendingEmail) : null;
+        String expectedOtp = review ? reviewCodeFor(context, pendingEmail, reviewUser) : stored.get(NOTE_CODE);
         int attempts = parseIntSafe(stored.get(NOTE_ATTEMPTS), 0);
         long expiresAt = parseLongSafe(stored.get(NOTE_EXPIRES_AT), 0);
 
-        // Defend against a partial/corrupt store entry (missing code) — treat it
-        // as expired and clear, rather than NPE'ing into a 500.
+        // No code to compare against: a partial/corrupt store entry, or a
+        // review record whose fixed code no longer applies. Treat it as
+        // expired and clear, so the user starts over at the email step.
         if (expectedOtp == null) {
             clearOtpState(context, pendingEmail);
             Response challenge = context.form()
@@ -293,6 +324,13 @@ public class TesseraOtpAuthenticator implements Authenticator {
                     .createForm(OTP_TEMPLATE);
             context.failureChallenge(AuthenticationFlowError.EXPIRED_CODE, challenge);
             return;
+        }
+
+        if (review) {
+            // Attach the account before any failure below, so realm brute force
+            // protection counts a wrong fixed code against it like a wrong
+            // password. The user was checked for enabled/locked in reviewCodeFor.
+            context.setUser(reviewUser);
         }
 
         // Count this attempt up-front. Once the cap is exceeded, invalidate the
@@ -331,7 +369,7 @@ public class TesseraOtpAuthenticator implements Authenticator {
                 context.failureChallenge(AuthenticationFlowError.EXPIRED_CODE, challenge);
                 return;
             }
-            putCode(store, codeKey, expectedOtp, attempts, expiresAt, remaining);
+            putCode(store, codeKey, review ? "" : expectedOtp, attempts, expiresAt, remaining, review);
             Response challenge = context.form()
                     .setAttribute("sentToEmail", pendingEmail)
                     .setError("tesseraOtpInvalid")
@@ -345,7 +383,9 @@ public class TesseraOtpAuthenticator implements Authenticator {
         // since the OTP proved ownership of the address.
         clearOtpState(context, pendingEmail);
 
-        UserModel user = findUserByEmail(context.getSession(), context.getRealm(), pendingEmail);
+        // A review account always exists (reviewCodeFor insisted on it); an
+        // ordinary address may be a new user.
+        UserModel user = review ? reviewUser : findUserByEmail(context.getSession(), context.getRealm(), pendingEmail);
         if (user == null) {
             try {
                 user = context.getSession().users().addUser(context.getRealm(), pendingEmail);
@@ -364,9 +404,64 @@ public class TesseraOtpAuthenticator implements Authenticator {
         }
         user.setEmailVerified(true);
 
+        if (review) {
+            // The audit trail for a bypass of the emailed code: who, where, for
+            // which client. Never the code.
+            LOG.infof("Fixed review code accepted for %s in realm %s, client %s", pendingEmail,
+                    context.getRealm().getName(), clientId(context));
+        }
+
         context.getAuthenticationSession().removeAuthNote(AUTH_NOTE_EMAIL);
         context.setUser(user);
         context.success();
+    }
+
+    // --- Fixed review codes --------------------------------------------------
+
+    /**
+     * The fixed review code for this address, or null when the ordinary emailed
+     * code applies. {@link ReviewAccess} decides from the config; on top of that
+     * the account must exist, be enabled and not be locked out, so a fixed code
+     * never provisions a user or bypasses a lockout. A listed address that is
+     * refused is logged with the reason (never the code), so a reviewer stuck
+     * on a config mistake can be helped quickly.
+     */
+    private String reviewCodeFor(AuthenticationFlowContext context, String email, UserModel user) {
+        ReviewAccess.Result result = ReviewAccess.resolve(
+                context.getAuthenticatorConfig() == null ? null : context.getAuthenticatorConfig().getConfig(),
+                email,
+                clientId(context),
+                context.getRealm().isBruteForceProtected(),
+                Instant.now());
+        if (result.decision() == ReviewAccess.Decision.OFF
+                || result.decision() == ReviewAccess.Decision.NOT_A_REVIEW_ACCOUNT) {
+            return null;
+        }
+
+        String refusal = null;
+        if (!result.granted()) {
+            refusal = result.decision().name();
+        } else if (user == null || !user.isEnabled()) {
+            refusal = "NO_ENABLED_USER";
+        } else if (isLockedOut(context, user)) {
+            refusal = "LOCKED_OUT";
+        }
+        if (refusal != null) {
+            LOG.warnf("Fixed review code not used for %s (%s); the ordinary emailed code applies", email, refusal);
+            return null;
+        }
+        return result.code();
+    }
+
+    private boolean isLockedOut(AuthenticationFlowContext context, UserModel user) {
+        var protector = context.getProtector();
+        return protector.isTemporarilyDisabled(context.getSession(), context.getRealm(), user)
+                || protector.isPermanentlyLockedOut(context.getSession(), context.getRealm(), user);
+    }
+
+    private String clientId(AuthenticationFlowContext context) {
+        var client = context.getAuthenticationSession().getClient();
+        return client == null ? null : client.getClientId();
     }
 
     private UserModel findUserByEmail(KeycloakSession session, RealmModel realm, String email) {
@@ -504,11 +599,14 @@ public class TesseraOtpAuthenticator implements Authenticator {
      * {@code expiresAt} note so attempt re-puts never extend the real lifetime.
      */
     private void putCode(SingleUseObjectProvider store, String key, String code,
-                         int attempts, long expiresAt, long lifespan) {
+                         int attempts, long expiresAt, long lifespan, boolean review) {
         Map<String, String> notes = new HashMap<>();
         notes.put(NOTE_CODE, code);
         notes.put(NOTE_ATTEMPTS, String.valueOf(attempts));
         notes.put(NOTE_EXPIRES_AT, String.valueOf(expiresAt));
+        if (review) {
+            notes.put(NOTE_REVIEW, "true");
+        }
         store.remove(key);
         store.put(key, Math.max(1, lifespan), notes);
     }

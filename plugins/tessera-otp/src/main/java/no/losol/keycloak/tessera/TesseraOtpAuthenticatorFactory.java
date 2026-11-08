@@ -53,7 +53,32 @@ public class TesseraOtpAuthenticatorFactory implements AuthenticatorFactory {
                             + "for bots, and a slower solve on slow phones. Only used when the "
                             + "HMAC key is set.",
                     ProviderConfigProperty.STRING_TYPE,
-                    String.valueOf(TesseraOtpAuthenticator.DEFAULT_ALTCHA_COST))
+                    String.valueOf(TesseraOtpAuthenticator.DEFAULT_ALTCHA_COST)),
+            // Temporary fixed codes for prepared review accounts (ReviewAccess).
+            // All three must be set for the feature to be on.
+            new ProviderConfigProperty(
+                    ReviewAccess.CONFIG_ACCOUNTS,
+                    "Review Accounts",
+                    "Fixed login codes for prepared review accounts, as email=code entries separated by "
+                            + "commas or newlines. Codes need at least " + ReviewAccess.MIN_CODE_LENGTH
+                            + " digits; the user must already exist. No email is sent to these addresses. "
+                            + "Also needs Review Client IDs and Review Valid Until. Blank disables.",
+                    ProviderConfigProperty.PASSWORD,
+                    ""),
+            new ProviderConfigProperty(
+                    ReviewAccess.CONFIG_CLIENTS,
+                    "Review Client IDs",
+                    "The only client IDs the review codes work for (exact match, separated by commas "
+                            + "or whitespace). Required for review codes; ordinary logins are unaffected.",
+                    ProviderConfigProperty.STRING_TYPE,
+                    ""),
+            new ProviderConfigProperty(
+                    ReviewAccess.CONFIG_VALID_UNTIL,
+                    "Review Valid Until",
+                    "When the review codes stop working: an ISO-8601 date (2026-12-01, the whole day "
+                            + "in UTC) or instant (2026-12-01T12:00:00Z). Required for review codes.",
+                    ProviderConfigProperty.STRING_TYPE,
+                    "")
     );
 
     @Override
