@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Tessera: four mosaic tiles on Linseed blue, one in ochre. Ratio UI colours. -->
+  <rect width="64" height="64" rx="14" fill="#16546c"/>
+  <rect x="13" y="13" width="17" height="17" rx="3" fill="#f6f2ea"/>
+  <rect x="34" y="13" width="17" height="17" rx="3" fill="#e8bc5b"/>
+  <rect x="13" y="34" width="17" height="17" rx="3" fill="#f6f2ea"/>
+  <rect x="34" y="34" width="17" height="17" rx="3" fill="#f6f2ea"/>
+</svg>

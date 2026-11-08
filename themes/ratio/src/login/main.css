@@ -26,6 +26,34 @@
 @import "@eventuras/ratio-ui/ratio-ui.css";
 
 /*
+ * The named Ratio themes a client can pick with the `ratio.theme` attribute
+ * (see ratioTheme.ts). Each file only applies under its own
+ * `<html data-theme="…">`, so loading all of them changes nothing for the
+ * standard theme. Their opt-in font files (bureau-fonts.css,
+ * tabula-fonts.css) are deliberately not loaded: see the font rule below.
+ */
+@import "@eventuras/ratio-ui/themes/bureau.css";
+@import "@eventuras/ratio-ui/themes/ink.css";
+@import "@eventuras/ratio-ui/themes/tabula.css";
+
+/*
+ * One set of fonts for every theme: Ratio's own Source Serif 4 / Source Sans 3
+ * (fonts.css). Bureau and tabula name Fira Sans and Space Mono; this rule
+ * keeps the standard families instead, so those themes change colour and
+ * shape but not type, and no other font files ship. Same selectors as the
+ * theme files, later in the cascade, so it wins.
+ */
+:root[data-theme],
+:root[data-theme] .surface-light,
+:root[data-theme] .surface-dark {
+    --font-sans: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+    --font-serif: "Source Serif 4", ui-serif, Georgia, serif;
+    --font-display: "Source Serif 4", ui-serif, Georgia, serif;
+    --font-body: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+}
+
+/*
  * Login layout. Plain CSS keyed off Ratio design tokens (defined in
  * ratio-ui.css) so the shell matches the design system without relying on
  * Tailwind's build step. Class names are scoped under `ratio-login` to
@@ -33,7 +61,7 @@
  */
 .ratio-login__body {
     margin: 0;
-    background-color: var(--color-neutral-50, #f5f5f4);
+    background-color: var(--surface, #f5f5f4);
     color: var(--text, var(--color-neutral-900, #1c1917));
     font-family: var(--font-sans, "Source Sans 3", system-ui, sans-serif);
 }
@@ -68,7 +96,7 @@
     font-family: var(--font-serif, "Source Serif 4", Georgia, serif);
     font-size: 1.5rem;
     margin: 0 0 0.25rem;
-    color: var(--color-primary-700, #1f4f6b);
+    color: var(--primary, #1f4f6b);
 }
 
 .ratio-login__title {
@@ -107,27 +135,27 @@
 }
 
 .ratio-login__alert--error {
-    background-color: var(--error-50, #fef2f2);
-    border-color: var(--error-solid, #dc2626);
-    color: var(--error-solid, #991b1b);
+    background-color: var(--error-bg);
+    border-color: var(--error-border);
+    color: var(--error-text);
 }
 
 .ratio-login__alert--warning {
-    background-color: var(--warning-50, #fffbeb);
-    border-color: var(--warning-solid, #d97706);
-    color: var(--warning-solid, #92400e);
+    background-color: var(--warning-bg);
+    border-color: var(--warning-border);
+    color: var(--warning-text);
 }
 
 .ratio-login__alert--success {
-    background-color: var(--success-50, #f0fdf4);
-    border-color: var(--success-solid, #16a34a);
-    color: var(--success-solid, #166534);
+    background-color: var(--success-bg);
+    border-color: var(--success-border);
+    color: var(--success-text);
 }
 
 .ratio-login__alert--info {
-    background-color: var(--info-50, #eff6ff);
-    border-color: var(--info-solid, #2563eb);
-    color: var(--info-solid, #1e40af);
+    background-color: var(--info-bg);
+    border-color: var(--info-border);
+    color: var(--info-text);
 }
 
 .ratio-login__info {
@@ -241,7 +269,7 @@
     text-align: center;
     text-decoration: none;
     border: 1.5px solid transparent;
-    border-radius: 9999px;
+    border-radius: var(--button-radius, 9999px);
     cursor: pointer;
     transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
 }
@@ -271,7 +299,7 @@
 
 .ratio-login__btn--secondary:not(:disabled):hover {
     border-color: var(--primary, #2563eb);
-    background-color: var(--color-neutral-50, #fafaf9);
+    background-color: var(--card-hover, #fafaf9);
 }
 
 /* Full-width (pill stretches across the card). */
@@ -321,13 +349,13 @@
     color: var(--text, #1c1917);
     background: var(--card, #fff);
     border: 1.5px solid var(--border-1, #e7e5e4);
-    border-radius: 9999px;
+    border-radius: var(--button-radius, 9999px);
     transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
 }
 
 .ratio-login__social-btn:hover {
     border-color: var(--primary, #2563eb);
-    background: var(--color-neutral-50, #fafaf9);
+    background: var(--card-hover, #fafaf9);
 }
 
 .ratio-login__social-btn:active {
@@ -452,7 +480,7 @@
     padding: 0.75rem 1rem;
     border: 1px solid var(--border-1, #e7e5e4);
     border-radius: var(--radius-md, 0.5rem);
-    background-color: var(--color-neutral-50, #fafaf9);
+    background-color: var(--surface, #fafaf9);
     font-size: 0.8125rem;
     color: var(--text-muted, var(--color-neutral-600, #57534e));
 }
@@ -491,4 +519,365 @@
 .ratio-login__error-reference .ratio-login__textlink {
     padding: 0;
     font-size: 0.8125rem;
+}
+
+/*
+ * Layouts (Template.tsx, chosen per client with `ratio.layout`). All of them
+ * read the theme tokens, so every Ratio theme restyles them. Below 56rem
+ * every layout becomes one column.
+ */
+
+.ratio-login__footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    color: var(--text-muted, #57534e);
+}
+
+.ratio-login__links {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem 1.5rem;
+    margin: 0;
+    padding: 0;
+}
+
+.ratio-login__links a {
+    color: inherit;
+}
+
+.ratio-login__links a:hover {
+    color: var(--primary, #2563eb);
+}
+
+.ratio-login__note {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.ratio-login__wordmark {
+    margin: 0;
+    font-family: var(--font-display, var(--font-serif, Georgia, serif));
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.ratio-login__eyebrow {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted, #57534e);
+}
+
+.ratio-login__lead {
+    margin: 0;
+    font-size: 1.0625rem;
+    line-height: 1.55;
+    color: var(--text-muted, #57534e);
+}
+
+.ratio-login__topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 2.75rem;
+}
+
+.ratio-login__topbar .ratio-login__locales {
+    margin: 0;
+}
+
+/* The flat layouts hold the form without a card around it. */
+.ratio-login__card--flat {
+    max-width: 24rem;
+    padding: 0;
+    margin: auto 0;
+    background: none;
+}
+
+.ratio-login__card--wide {
+    max-width: 28rem;
+}
+
+.ratio-login__header--start {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    text-align: left;
+}
+
+.ratio-login__header--start .ratio-login__title {
+    margin: 0;
+    font-family: var(--font-display, var(--font-serif, Georgia, serif));
+    font-size: clamp(1.75rem, 1.4rem + 1.2vw, 2.25rem);
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    line-height: 1.12;
+}
+
+.ratio-login__page--column .ratio-login__header--start .ratio-login__title {
+    font-size: clamp(2rem, 1.5rem + 2vw, 3rem);
+}
+
+/* split: brand panel | form. */
+.ratio-login__page--split {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    align-items: stretch;
+    gap: 0;
+    padding: 0;
+}
+
+.ratio-login__brand-panel {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 2rem;
+    padding: 3.5rem;
+    background: var(--primary, #1f4f6b);
+    color: var(--text-on-primary, #ffffff);
+}
+
+.ratio-login__brand-panel .ratio-login__eyebrow,
+.ratio-login__brand-panel .ratio-login__lead {
+    color: inherit;
+}
+
+.ratio-login__rings {
+    position: absolute;
+    right: -9rem;
+    bottom: -9rem;
+    width: 32rem;
+    height: 32rem;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    opacity: 0.14;
+    pointer-events: none;
+}
+
+.ratio-login__brand-copy {
+    position: relative;
+    margin-block: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    max-width: 30rem;
+}
+
+.ratio-login__headline {
+    margin: 0;
+    font-family: var(--font-display, var(--font-serif, Georgia, serif));
+    font-size: clamp(2rem, 1.2rem + 2.4vw, 3rem);
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    line-height: 1.12;
+    text-wrap: balance;
+}
+
+.ratio-login__brand-panel .ratio-login__note {
+    position: relative;
+    max-width: 26rem;
+}
+
+.ratio-login__main {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    min-width: 0;
+    padding: 2rem 3.5rem;
+}
+
+.ratio-login__main .ratio-login__topbar {
+    justify-content: flex-end;
+}
+
+.ratio-login__main .ratio-login__card--flat {
+    align-self: center;
+}
+
+/* column: slim top bar, one calm column, footer. */
+.ratio-login__page--column {
+    justify-content: space-between;
+    padding: 0;
+}
+
+.ratio-login__topbar--bar {
+    align-self: stretch;
+    padding: 1.25rem 3rem;
+    border-bottom: 1px solid var(--border-1, #e7e5e4);
+}
+
+.ratio-login__page--column .ratio-login__card--flat {
+    padding: 2.5rem 1rem;
+    box-sizing: content-box;
+}
+
+.ratio-login__page--column .ratio-login__footer {
+    padding: 0 1rem 1.5rem;
+}
+
+/* panel: edge panel with the form | the service you sign in to. */
+.ratio-login__page--panel {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 0;
+    padding: 0;
+}
+
+.ratio-login__side {
+    flex: 0 0 30rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    padding: 2.5rem 3rem;
+    box-sizing: border-box;
+    background: var(--card, #ffffff);
+    border-right: 1px solid var(--border-2, #d6d3d1);
+}
+
+.ratio-login__side .ratio-login__footer {
+    align-items: flex-start;
+}
+
+.ratio-login__context {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 1rem;
+    padding: 4.5rem 5rem;
+}
+
+.ratio-login__context-name {
+    margin: 0;
+    font-family: var(--font-display, var(--font-serif, Georgia, serif));
+    font-size: clamp(2.5rem, 1rem + 4.5vw, 5.5rem);
+    font-weight: 650;
+    letter-spacing: -0.03em;
+    line-height: 1.02;
+    overflow-wrap: anywhere;
+}
+
+.ratio-login__context .ratio-login__lead {
+    max-width: 36rem;
+    font-size: 1.1875rem;
+}
+
+.ratio-login__context-link {
+    align-self: flex-start;
+    font-weight: 600;
+    color: var(--primary, #2563eb);
+}
+
+/* Phones and narrow windows: one column, brand and service above the form. */
+@media (max-width: 56rem) {
+    .ratio-login__page--split {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto 1fr;
+    }
+
+    .ratio-login__brand-panel {
+        padding: 1.75rem 1.5rem 2rem;
+        gap: 1.5rem;
+    }
+
+    .ratio-login__brand-copy {
+        margin-block: 0;
+    }
+
+    .ratio-login__brand-panel .ratio-login__lead,
+    .ratio-login__brand-panel .ratio-login__note,
+    .ratio-login__brand-panel .ratio-login__eyebrow {
+        display: none;
+    }
+
+    .ratio-login__rings {
+        top: -8rem;
+        bottom: auto;
+        right: -8rem;
+        width: 19rem;
+        height: 19rem;
+    }
+
+    .ratio-login__headline {
+        font-size: 1.875rem;
+    }
+
+    .ratio-login__main {
+        padding: 1.5rem;
+        gap: 1.5rem;
+    }
+
+    .ratio-login__main .ratio-login__topbar {
+        order: 1;
+        justify-content: center;
+    }
+
+    .ratio-login__main .ratio-login__card--flat {
+        align-self: stretch;
+        max-width: none;
+    }
+
+    .ratio-login__topbar--bar {
+        padding: 1rem 1.5rem;
+    }
+
+    .ratio-login__page--column .ratio-login__card--flat {
+        padding: 2rem 1.5rem;
+        box-sizing: border-box;
+        width: 100%;
+    }
+
+    .ratio-login__page--panel {
+        flex-direction: column;
+    }
+
+    .ratio-login__context {
+        order: -1;
+        flex: none;
+        justify-content: flex-start;
+        gap: 0.5rem;
+        padding: 1.75rem 1.5rem 0;
+    }
+
+    .ratio-login__context-name {
+        font-size: 2rem;
+    }
+
+    .ratio-login__context .ratio-login__lead,
+    .ratio-login__context .ratio-login__note {
+        display: none;
+    }
+
+    .ratio-login__side {
+        flex: 1 1 auto;
+        padding: 1.5rem;
+        background: none;
+        border-right: 0;
+    }
+
+    .ratio-login__side .ratio-login__card--flat {
+        max-width: none;
+    }
+
+    /* On a phone the form follows the top bar instead of floating mid-screen. */
+    .ratio-login__card--flat {
+        margin: 0;
+    }
+
+    .ratio-login__footer {
+        margin-top: auto;
+    }
 }

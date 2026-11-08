@@ -36,7 +36,17 @@ const norwegianTesseraOtpMessages = {
     ratioErrorSupportHint: "Kontakter du support, ta med referansen og tidspunktet.",
     ratioErrorSupportHintTimeOnly: "Kontakter du support, ta med tidspunktet.",
     ratioErrorCopy: "Kopier",
-    ratioErrorCopied: "Kopiert"
+    ratioErrorCopied: "Kopiert",
+    // Layouts (Template.tsx). Empty texts are left out of the page; set them
+    // per client with `ratio.text.<key>` to show them.
+    ratioBrandEyebrow: "",
+    ratioBrandHeadline: "Én innlogging til alle tjenestene dine.",
+    ratioBrandLead: "",
+    ratioFooterNote: "",
+    ratioSigningInTo: "Du logger inn på",
+    ratioBackTo: "Tilbake til {0}",
+    ratioHelp: "Hjelp",
+    ratioPrivacy: "Personvern"
 };
 
 /**
@@ -105,7 +115,15 @@ const { useI18n, ofTypeI18n } = i18nBuilder
             ratioErrorSupportHint: "If you contact support, include the reference and the time.",
             ratioErrorSupportHintTimeOnly: "If you contact support, include the time.",
             ratioErrorCopy: "Copy",
-            ratioErrorCopied: "Copied"
+            ratioErrorCopied: "Copied",
+            ratioBrandEyebrow: "",
+            ratioBrandHeadline: "One sign-in for all your services.",
+            ratioBrandLead: "",
+            ratioFooterNote: "",
+            ratioSigningInTo: "You are signing in to",
+            ratioBackTo: "Back to {0}",
+            ratioHelp: "Help",
+            ratioPrivacy: "Privacy"
         },
         no: norwegianTesseraOtpMessages,
         nb: norwegianTesseraOtpMessages

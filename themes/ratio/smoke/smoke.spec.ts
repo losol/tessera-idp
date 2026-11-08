@@ -159,3 +159,243 @@ for (const traceId of [null, "4c2aec90375e5ef6c3ecc0a3ac7d87fe"]) {
         }
     });
 }
+
+// Per-client Ratio theme, driven by the client attributes `ratio.theme` and
+// `ratio.color-scheme` (smoke/entry.tsx `?theme=` / `?scheme=`). Each case
+// checks the attributes written on <html> and that the theme's tokens
+// actually reached the page (its surface colour differs from the default).
+const THEME_CASES: {
+    theme: string | null;
+    scheme: string | null;
+    dataTheme: string;
+    dataColorScheme: string;
+}[] = [
+    // Absent → the standard light theme, as before.
+    { theme: null, scheme: null, dataTheme: "light", dataColorScheme: "light" },
+    { theme: null, scheme: "dark", dataTheme: "dark", dataColorScheme: "dark" },
+    { theme: "standard", scheme: "light", dataTheme: "light", dataColorScheme: "light" },
+    { theme: "bureau", scheme: null, dataTheme: "bureau", dataColorScheme: "light" },
+    { theme: "bureau", scheme: "dark", dataTheme: "bureau", dataColorScheme: "dark" },
+    { theme: "ink", scheme: "dark", dataTheme: "ink", dataColorScheme: "dark" },
+    { theme: " Tabula ", scheme: null, dataTheme: "tabula", dataColorScheme: "light" },
+    // Unknown values fall back to the default rather than break the page.
+    { theme: "__proto__", scheme: "purple", dataTheme: "light", dataColorScheme: "light" }
+];
+
+async function surfaceOf(page: import("@playwright/test").Page) {
+    return page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+}
+
+for (const c of THEME_CASES) {
+    test(`client theme ${c.theme ?? "(absent)"} / scheme ${c.scheme ?? "(absent)"}`, async ({ page }) => {
+        const errors: string[] = [];
+        page.on("pageerror", err => errors.push(err.message));
+
+        // Reference: the default page's surface colour.
+        await page.goto("/smoke/index.html?pageId=login-tessera-otp-start.ftl");
+        await expect(page.locator(".ratio-login__card")).toBeVisible({ timeout: 10000 });
+        const defaultSurface = await surfaceOf(page);
+
+        const query = new URLSearchParams({ pageId: "login-tessera-otp-start.ftl" });
+        if (c.theme !== null) query.set("theme", c.theme);
+        if (c.scheme !== null) query.set("scheme", c.scheme);
+        await page.goto(`/smoke/index.html?${query.toString()}`);
+        await expect(page.locator(".ratio-login__card")).toBeVisible({ timeout: 10000 });
+
+        const html = page.locator("html");
+        await expect(html).toHaveAttribute("data-theme", c.dataTheme);
+        await expect(html).toHaveAttribute("data-color-scheme", c.dataColorScheme);
+
+        const isDefault = c.dataTheme === "light";
+        const surface = await surfaceOf(page);
+        if (isDefault) {
+            expect(surface, "default theme keeps the default surface").toBe(defaultSurface);
+        } else {
+            expect(surface, "theme tokens should restyle the page").not.toBe(defaultSurface);
+        }
+
+        expect(await html.evaluate(el => getComputedStyle(el).opacity)).toBe("1");
+        expect(errors).toEqual([]);
+    });
+}
+
+// `auto` follows the visitor's system setting.
+for (const colorScheme of ["light", "dark"] as const) {
+    test(`client scheme auto follows a ${colorScheme} system setting`, async ({ page }) => {
+        await page.emulateMedia({ colorScheme });
+        await page.goto("/smoke/index.html?pageId=login-tessera-otp-start.ftl&theme=ink&scheme=auto");
+        await expect(page.locator(".ratio-login__card")).toBeVisible({ timeout: 10000 });
+        await expect(page.locator("html")).toHaveAttribute("data-theme", "ink");
+        await expect(page.locator("html")).toHaveAttribute("data-color-scheme", colorScheme);
+    });
+}
+
+// Square-cornered themes reach the login's own buttons too, not only Ratio's.
+test("tabula squares the provider buttons", async ({ page }) => {
+    await page.goto("/smoke/index.html?pageId=login-tessera-otp-start.ftl&theme=tabula");
+    await expect(page.locator(".ratio-login__card")).toBeVisible({ timeout: 10000 });
+    await expect(page.locator(".ratio-login__social-btn").first()).toHaveCSS("border-top-left-radius", "0px");
+});
+
+// Per-client texts: `ratio.text.<key>` (smoke/entry.tsx `?text.<key>=`).
+test.describe("client texts", () => {
+    const start = "/smoke/index.html?pageId=login-tessera-otp-start.ftl";
+    const card = (page: import("@playwright/test").Page) => page.locator(".ratio-login__card");
+
+    test("replace a theme text for the client", async ({ page }) => {
+        await page.goto(`${start}&text.tesseraOtpEmailTitle=${encodeURIComponent("Logg inn på Min side")}`);
+        await expect(page.locator(".ratio-login__title")).toHaveText("Logg inn på Min side");
+    });
+
+    test("fill {0} like the theme's own messages", async ({ page }) => {
+        await page.goto(`${start}&text.tesseraContinueWith=${encodeURIComponent("Bruk {0}")}`);
+        await expect(page.locator("#social-github")).toHaveText("Bruk GitHub");
+    });
+
+    test("prefer the text for the current language", async ({ page }) => {
+        const query = new URLSearchParams({ pageId: "login-tessera-otp-start.ftl", locale: "nb" });
+        query.set("text.tesseraOtpEmailTitle", "Sign in to My page");
+        query.set("text.tesseraOtpEmailTitle.nb", "Logg inn på Min side");
+        await page.goto(`/smoke/index.html?${query.toString()}`);
+        await expect(page.locator(".ratio-login__title")).toHaveText("Logg inn på Min side");
+    });
+
+    test("resolve a ${key} reference from realm localization", async ({ page }) => {
+        const query = new URLSearchParams({ pageId: "login-tessera-otp-start.ftl" });
+        query.set("text.tesseraOtpEmailTitle", "${losvikLoginTitle}");
+        query.set("realmText.losvikLoginTitle", "Velkommen til Losvik");
+        await page.goto(`/smoke/index.html?${query.toString()}`);
+        await expect(page.locator(".ratio-login__title")).toHaveText("Velkommen til Losvik");
+    });
+
+    test("fall back to the theme text for an unresolved reference or an empty value", async ({ page }) => {
+        const query = new URLSearchParams({ pageId: "login-tessera-otp-start.ftl" });
+        query.set("text.tesseraOtpEmailTitle", "${noSuchKey}");
+        query.set("text.tesseraOtpUseCode", "  ");
+        await page.goto(`/smoke/index.html?${query.toString()}`);
+        await expect(page.locator(".ratio-login__title")).toHaveText("Sign in");
+        await expect(page.locator(".ratio-login__textlink")).toHaveText("Log in with a one-time code");
+    });
+
+    test("render markup in a client text as plain text", async ({ page }) => {
+        const errors: string[] = [];
+        page.on("pageerror", err => errors.push(err.message));
+        await page.goto(`${start}&text.tesseraOtpEmailTitle=${encodeURIComponent('<img src=x onerror="alert(1)">Hi')}`);
+        await expect(page.locator(".ratio-login__title")).toHaveText('<img src=x onerror="alert(1)">Hi');
+        await expect(card(page).locator("img")).toHaveCount(0);
+        expect(errors).toEqual([]);
+    });
+
+    test("leave the default page untouched without client texts", async ({ page }) => {
+        await page.goto(start);
+        await expect(page.locator(".ratio-login__title")).toHaveText("Sign in");
+        await expect(page.locator("#social-github")).toHaveText("Continue with GitHub");
+    });
+});
+
+// Per-client layout: `ratio.layout` (smoke/entry.tsx `?attr.ratio.layout=`).
+const LAYOUTS = ["card", "split", "column", "panel"];
+const LAYOUT_PAGES = ["login-tessera-otp-start.ftl", "login-tessera-otp-code.ftl", "login-update-profile.ftl", "error.ftl"];
+const VIEWPORTS = [
+    { name: "desktop", width: 1280, height: 800 },
+    { name: "phone", width: 390, height: 844 }
+];
+
+for (const layout of LAYOUTS) {
+    for (const pageId of LAYOUT_PAGES) {
+        for (const viewport of VIEWPORTS) {
+            test(`layout ${layout} renders ${pageId} on ${viewport.name}`, async ({ page }) => {
+                const errors: string[] = [];
+                page.on("pageerror", err => errors.push(err.message));
+                await page.setViewportSize({ width: viewport.width, height: viewport.height });
+
+                const query = new URLSearchParams({ pageId, clientName: "Eventuras" });
+                query.set("attr.ratio.layout", layout);
+                await page.goto(`/smoke/index.html?${query.toString()}`);
+                await expect(page.locator(".ratio-login__card")).toBeVisible({ timeout: 10000 });
+                await expect(page.locator(`.ratio-login__page--${layout}`)).toHaveCount(1);
+                await expect(page.locator(".ratio-login__title")).toBeVisible();
+
+                // One page title (h1) per page, whatever the layout.
+                await expect(page.locator("h1")).toHaveCount(1);
+
+                // Nothing pushes the page sideways on a phone.
+                const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+                expect(overflow, "horizontal overflow").toBeLessThanOrEqual(0);
+
+                expect(errors).toEqual([]);
+            });
+        }
+    }
+}
+
+for (const layout of [null, "__proto__", ""]) {
+    test(`layout ${layout === null ? "(absent)" : JSON.stringify(layout)} falls back to split`, async ({ page }) => {
+        const query = new URLSearchParams({ pageId: "login-tessera-otp-start.ftl" });
+        if (layout !== null) query.set("attr.ratio.layout", layout);
+        await page.goto(`/smoke/index.html?${query.toString()}`);
+        await expect(page.locator(".ratio-login__page--split")).toHaveCount(1);
+    });
+}
+
+// Every theme keeps Ratio's own fonts; bureau and tabula's Fira Sans and
+// Space Mono are neither used nor shipped.
+for (const theme of ["standard", "bureau", "ink", "tabula"]) {
+    test(`theme ${theme} uses the Ratio fonts`, async ({ page }) => {
+        const fontRequests: string[] = [];
+        page.on("request", request => {
+            if (request.resourceType() === "font") fontRequests.push(request.url());
+        });
+        await page.goto(`/smoke/index.html?pageId=login-tessera-otp-start.ftl&theme=${theme}`);
+        await expect(page.locator(".ratio-login__card")).toBeVisible({ timeout: 10000 });
+        await expect(page.locator("body")).toHaveCSS("font-family", /^"Source Sans 3"/);
+        await expect(page.locator(".ratio-login__headline")).toHaveCSS("font-family", /^"Source Serif 4"/);
+        expect(fontRequests.filter(url => /fira|spacemono/i.test(url))).toEqual([]);
+    });
+}
+
+test("split shows the brand texts, replaceable per client", async ({ page }) => {
+    const query = new URLSearchParams({ pageId: "login-tessera-otp-start.ftl" });
+    query.set("attr.ratio.layout", "split");
+    query.set("text.ratioBrandHeadline", "Én innlogging til kommunen.");
+    query.set("text.ratioBrandLead", "Søknader og meldinger på ett sted.");
+    await page.goto(`/smoke/index.html?${query.toString()}`);
+    const panel = page.locator(".ratio-login__brand-panel");
+    await expect(panel.locator(".ratio-login__headline")).toHaveText("Én innlogging til kommunen.");
+    await expect(panel.locator(".ratio-login__lead")).toHaveText("Søknader og meldinger på ett sted.");
+    // Empty by default: no eyebrow or note until a client sets them.
+    await expect(panel.locator(".ratio-login__eyebrow")).toHaveCount(0);
+    await expect(panel.locator(".ratio-login__note")).toHaveCount(0);
+});
+
+test("panel names the service and links back to it", async ({ page }) => {
+    await page.goto("/smoke/index.html?pageId=login-tessera-otp-start.ftl&attr.ratio.layout=panel&clientName=Eventuras&clientUrl=https://example.org/");
+    const context = page.locator(".ratio-login__context");
+    await expect(context.locator(".ratio-login__context-name")).toHaveText("Eventuras");
+    await expect(context.locator("a")).toHaveAttribute("href", "https://example.org/");
+    await expect(context.locator("a")).toHaveText("Back to Eventuras");
+});
+
+test("panel leaves out a back link that is not http(s)", async ({ page }) => {
+    await page.goto("/smoke/index.html?pageId=login-tessera-otp-start.ftl&attr.ratio.layout=panel&clientName=Eventuras&clientUrl=javascript:alert(1)");
+    await expect(page.locator(".ratio-login__context a")).toHaveCount(0);
+});
+
+test("footer links appear only for http(s) URLs", async ({ page }) => {
+    const query = new URLSearchParams({ pageId: "login-tessera-otp-start.ftl" });
+    query.set("attr.ratio.help-url", "https://example.org/help");
+    query.set("attr.ratio.privacy-url", "javascript:alert(1)");
+    await page.goto(`/smoke/index.html?${query.toString()}`);
+    const links = page.locator(".ratio-login__links a");
+    await expect(links).toHaveCount(1);
+    await expect(links).toHaveText("Help");
+    await expect(links).toHaveAttribute("href", "https://example.org/help");
+});
+
+test("the page links the Tessera favicon", async ({ page, request }) => {
+    await page.goto("/smoke/index.html?pageId=login-tessera-otp-start.ftl");
+    await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveAttribute("href", "/favicon.svg");
+    for (const path of ["/favicon.svg", "/favicon-32x32.png", "/apple-touch-icon.png"]) {
+        expect((await request.get(path)).status(), path).toBe(200);
+    }
+});
