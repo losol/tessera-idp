@@ -65,6 +65,31 @@ should not sign in at all; revoke its sessions in the admin console if it
 must lose access at once, since changing the config does not end sessions
 already issued.
 
+## Automated tests
+
+The same settings suit end-to-end tests that only need a signed-in user: the
+test enters the address and the fixed code, with no mailbox or Mailpit lookup.
+
+```text
+review-accounts     = e2e-user@example.org=<random code>
+review-client-ids   = civitas-mobile, civitas-web
+review-valid-until  = 2027-12-31
+```
+
+- Use it in a **test realm only**: within its date the code is a password
+  that does not expire. In production keep it for the review window itself.
+- Create each test user in the realm setup, enabled, with the data the tests
+  expect. The code never creates users.
+- Keep the code in one CI secret. Wrong guesses count against the user under
+  the realm's brute force policy, so a test that keeps guessing locks its
+  user out until the policy's window passes.
+- Tests that start a login for the same address within two minutes share one
+  challenge (the ordinary send throttle). That works, since the code is the
+  same; one test user per suite avoids surprises.
+- The repository's own smoke (`scripts/smoke-default-themes.py`) logs in with
+  a real emailed code through Mailpit on purpose: it checks the email path.
+  Leave it that way; the fixed code is for tests that just need a user.
+
 ## Limits
 
 - One exact address per entry: no wildcards, and `appreview+x@…` is a
