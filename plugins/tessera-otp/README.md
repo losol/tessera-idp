@@ -1,6 +1,6 @@
 # Keycloak Tessera providers
 
-Two providers in one JAR:
+Three providers in one JAR:
 
 - **`tessera-otp`** — the passwordless one-time-code authenticator described below.
 - **`apple`** — a Sign in with Apple identity provider, see
@@ -8,6 +8,10 @@ Two providers in one JAR:
   with Apple's `form_post` callback, signed client secret and first-consent
   name handling added. `META-INF/beans.xml` is there for it: without it Quarkus
   does not index the JAR and the callback's POST handler answers 405.
+- **`discord`** — a Discord identity provider, see
+  [docs/discord-login.md](../../docs/discord-login.md). Keycloak's generic
+  OAuth 2.0 broker with Discord's endpoints pinned and the user read from
+  `/users/@me`; the email counts as verified only when Discord says so.
 
 ## Tessera OTP
 

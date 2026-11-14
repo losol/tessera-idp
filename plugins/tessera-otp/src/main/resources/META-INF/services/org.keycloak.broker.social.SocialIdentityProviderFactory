@@ -1,1 +1,2 @@
 no.losol.keycloak.tessera.apple.AppleIdentityProviderFactory
+no.losol.keycloak.tessera.discord.DiscordIdentityProviderFactory

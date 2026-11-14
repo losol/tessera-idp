@@ -1,10 +1,11 @@
-# Google and Apple login
+# Google, Apple and Discord login
 
-Both providers are plain Keycloak identity providers on the realm: Google is
-Keycloak's built-in `google` broker, Apple is the small `apple` broker shipped
-in the tessera provider JAR ([apple-login.md](apple-login.md)). No Tessera
-code decides who may log in; the realm's first-broker-login flow does, with
-Keycloak's own authenticators. The Ratio login page shows every enabled
+All three are plain Keycloak identity providers on the realm: Google is
+Keycloak's built-in `google` broker, Apple and Discord are the small `apple`
+and `discord` brokers shipped in the tessera provider JAR
+([apple-login.md](apple-login.md), [discord-login.md](discord-login.md)). No
+Tessera code decides who may log in; the realm's first-broker-login flow does,
+with Keycloak's own authenticators. The Ratio login page shows every enabled
 provider, ordered and emphasised per client with `tessera.login-methods`
 (see [themes/ratio/README.md](../themes/ratio/README.md)).
 
@@ -25,6 +26,13 @@ client id and secret, and the settings below. Leave *Hosted domain* empty so
 both Gmail and Workspace accounts can log in. Nothing else is needed; the
 built-in provider pins Google's endpoints and verifies the ID token against
 Google's JWKS.
+
+## Discord
+
+See [discord-login.md](discord-login.md). The settings below apply, with one
+difference: Discord's *Trust email* is **off**, because a Discord address can
+be unverified. The provider marks the address verified only when Discord does,
+and the flow below links on that.
 
 ## Settings shared by Google and Apple
 
@@ -123,6 +131,9 @@ Create it with the admin console, or declaratively:
   that is a small conditional authenticator in the sub-flow above, not a
   provider change; it is not implemented today.
 - Apple verifies every address it asserts, including relay addresses.
+- Discord says per address whether it verified it; the provider passes that
+  on as `email_verified`, so the flow links automatically only for verified
+  addresses and emails a link otherwise.
 - `idp-auto-link` links to an existing account even if that account's own
   email was never verified (for example one created by an admin). Realms where
   that matters should put *Confirm link existing account* before it.
