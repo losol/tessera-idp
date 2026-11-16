@@ -1,9 +1,14 @@
-# Tag-driven release. Push a semver tag and this builds and publishes the image,
-# then opens the matching GitHub Release:
+# Builds and publishes the image for a release tag, then fills in the GitHub
+# Release:
 #
-#   git tag v0.1.0 && git push origin v0.1.0
-#   -> ghcr.io/losol/tessera-idp:0.1.0, :0.1, :latest   (linux/amd64 + linux/arm64)
-#   -> https://github.com/losol/tessera-idp/releases/tag/v0.1.0
+#   v0.1.0 -> ghcr.io/losol/tessera-idp:0.1.0, :0.1, :latest   (linux/amd64 + linux/arm64)
+#          -> https://github.com/losol/tessera-idp/releases/tag/v0.1.0
+#
+# Normally the tag and the Release come from release-please
+# (.github/workflows/release-please.yml), which then starts this workflow on
+# the tag: a tag pushed with the workflow token does not trigger `on: push`
+# by itself. A tag pushed by hand (`git push origin v0.1.0`) still works and
+# creates the Release here.
 #
 # Actions are pinned to commit SHAs (with the version in a trailing comment);
 # Dependabot keeps the pins updated (.github/dependabot.yml).
@@ -12,6 +17,8 @@ name: Build & publish image
 on:
   push:
     tags: ["v*"]
+  # Run on a tag ref: `gh workflow run build.yml --ref v0.1.0`.
+  workflow_dispatch:
 
 # Don't cancel a publish midway.
 concurrency:
@@ -70,20 +77,25 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Last, so a failed build never leaves a Release pointing at nothing.
-      # GitHub writes the body from merged PRs (grouped per .github/release.yml);
-      # --notes prepends the two facts it cannot know: which Keycloak is baked in,
-      # and the digest to pin against.
+      # Last, so a failed build never adds the facts below to a Release.
+      # Two facts the Release cannot know by itself go at the top of its body:
+      # which Keycloak is baked in, and the digest to pin against. A Release
+      # release-please made keeps its changelog under them; a hand-pushed tag
+      # gets a Release here, with GitHub's notes from the merged PRs (grouped
+      # per .github/release.yml).
       - name: GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
           DIGEST: ${{ steps.build.outputs.digest }}
         run: |
+          case "$TAG" in v*) ;; *) echo "not a release tag: $TAG" >&2; exit 1 ;; esac
           kc="$(scripts/check-keycloak-version.sh --print)"
-          args=(--verify-tag --generate-notes)
+          facts="$(printf "Keycloak **%s**\n\n\`\`\`\n%s@%s\n\`\`\`\n" "$kc" "$IMAGE" "$DIGEST")"
           # A semver prerelease (v0.1.0-rc.1) must not become the "Latest" release.
-          case "$TAG" in *-*) args+=(--prerelease) ;; esac
-          gh release create "$TAG" "${args[@]}" --notes "$(
-            printf "Keycloak **%s**\n\n\`\`\`\n%s@%s\n\`\`\`\n" "$kc" "$IMAGE" "$DIGEST"
-          )"
+          prerelease=(); case "$TAG" in *-*) prerelease=(--prerelease) ;; esac
+          if body="$(gh release view "$TAG" --json body --jq .body 2>/dev/null)"; then
+            gh release edit "$TAG" "${prerelease[@]}" --notes "$(printf '%s\n%s' "$facts" "$body")"
+          else
+            gh release create "$TAG" --verify-tag --generate-notes "${prerelease[@]}" --notes "$facts"
+          fi
