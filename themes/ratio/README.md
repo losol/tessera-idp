@@ -29,6 +29,8 @@ Source lives in `src/login/`:
 - `Template.tsx` — shared shell in four layouts (see [Layout per client](#layout-per-client))
 - `pages/` — per-page components (e.g. `Login.tsx`)
 - `ProviderIcon.tsx` — brand marks for the Google, Apple and GitHub buttons
+- `pages/Webauthn*.tsx`, `pages/SelectAuthenticator.tsx` — the passkey pages,
+  see [docs/passkeys.md](../../docs/passkeys.md)
 - `main.css` — imports Ratio CSS + fonts and the login layout
 
 ## Login methods per client
@@ -45,12 +47,13 @@ form).
 | `otp` | Only the email form, open |
 | `otp,github` | Email form on top, GitHub below the "or" divider |
 | `github,otp` | GitHub as the filled primary button, email code behind a link |
+| `passkey,google,otp` | On a realm whose flow starts with the passkey step ([docs/passkeys.md](../../docs/passkeys.md)): passkey as the filled button, Google below, email code behind a link. Elsewhere `passkey` is ignored |
 
 - **The first entry leads.** Every listed method is on the same page; the first
   is the emphasised one (a lead provider gets the filled primary button, a lead
   `otp` puts the open email form first). The rest follow in list order.
-- **Unknown entries are ignored**, so infra can list a method (e.g. `passkey`)
-  before the theme can render it, or name a provider the realm does not enable.
+- **Unknown entries are ignored**, so infra can name a provider the realm does
+  not enable, or `passkey` on a realm without the passkey step.
 - **Nothing renderable falls back to the default page**, never an empty one.
 
 Provider buttons read "Continue with <display name>" (localised), with a brand

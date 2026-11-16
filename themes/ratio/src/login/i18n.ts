@@ -46,7 +46,29 @@ const norwegianTesseraOtpMessages = {
     ratioSigningInTo: "Du logger inn på",
     ratioBackTo: "Tilbake til {0}",
     ratioHelp: "Hjelp",
-    ratioPrivacy: "Personvern"
+    ratioPrivacy: "Personvern",
+    // Passkeys (docs/passkeys.md). The keys Keycloak's own WebAuthn scripts
+    // read have no Norwegian in keycloakify's set, so they are given here.
+    ratioPasskeyLogin: "Logg inn med passnøkkel",
+    ratioPasskeyHint: "Fingeravtrykk, ansikt eller PIN på enheten din.",
+    ratioPasskeyOtherWay: "Prøv en annen måte",
+    ratioPasskeyChooseTitle: "Hvordan vil du logge inn?",
+    ratioPasskeyRegisterTitle: "Logg inn raskere neste gang?",
+    ratioPasskeyRegisterLead: "Lag en passnøkkel på denne enheten, så slipper du koden på e-post.",
+    ratioPasskeyPoint1: "Du bruker fingeravtrykk, ansikt eller PIN, som du allerede gjør for å låse opp enheten.",
+    ratioPasskeyPoint2: "Passnøkkelen kan ikke gjettes eller lures ut av deg, og den ligger i nøkkelringen din.",
+    ratioPasskeyPoint3: "Mister du enheten, logger du inn med e-postkode som før.",
+    ratioPasskeyCreate: "Lag passnøkkel",
+    ratioPasskeyNotNow: "Ikke nå",
+    ratioPasskeyLater: "Du kan lage en senere under Min konto.",
+    ratioPasskeyErrorTitle: "Det gikk ikke med passnøkkel",
+    ratioPasskeyErrorBody:
+        "Du kan prøve igjen, eller få en kode på e-post. Når du er inne, kan du lage en passnøkkel på denne enheten.",
+    ratioPasskeyEmailCode: "Få kode på e-post",
+    ratioPasskeyTryAgain: "Prøv passnøkkel igjen",
+    "webauthn-unsupported-browser-text": "Nettleseren støtter ikke passnøkler. Prøv en annen nettleser.",
+    "webauthn-registration-init-label": "Passnøkkel",
+    "webauthn-registration-init-label-prompt": "Gi passnøkkelen et navn"
 };
 
 /**
@@ -123,7 +145,27 @@ const { useI18n, ofTypeI18n } = i18nBuilder
             ratioSigningInTo: "You are signing in to",
             ratioBackTo: "Back to {0}",
             ratioHelp: "Help",
-            ratioPrivacy: "Privacy"
+            ratioPrivacy: "Privacy",
+            ratioPasskeyLogin: "Sign in with passkey",
+            ratioPasskeyHint: "Fingerprint, face or PIN on your device.",
+            ratioPasskeyOtherWay: "Try another way",
+            ratioPasskeyChooseTitle: "How do you want to sign in?",
+            ratioPasskeyRegisterTitle: "Sign in faster next time?",
+            ratioPasskeyRegisterLead: "Create a passkey on this device and skip the code by email.",
+            ratioPasskeyPoint1: "You use your fingerprint, face or PIN, as you already do to unlock the device.",
+            ratioPasskeyPoint2: "A passkey cannot be guessed or tricked out of you, and it stays in your keychain.",
+            ratioPasskeyPoint3: "Lose the device, and you sign in with a code by email as before.",
+            ratioPasskeyCreate: "Create passkey",
+            ratioPasskeyNotNow: "Not now",
+            ratioPasskeyLater: "You can create one later under My account.",
+            ratioPasskeyErrorTitle: "That did not work with the passkey",
+            ratioPasskeyErrorBody:
+                "You can try again or get a code by email. Once you are in, you can create a passkey on this device.",
+            ratioPasskeyEmailCode: "Get a code by email",
+            ratioPasskeyTryAgain: "Try the passkey again",
+            "webauthn-unsupported-browser-text": "This browser does not support passkeys. Try another browser.",
+            "webauthn-registration-init-label": "Passkey",
+            "webauthn-registration-init-label-prompt": "Name this passkey"
         },
         no: norwegianTesseraOtpMessages,
         nb: norwegianTesseraOtpMessages

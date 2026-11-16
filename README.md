@@ -9,7 +9,8 @@ an optimized runtime:
 - **`themes/ratio/`** — the Ratio login theme, built with [Keycloakify](https://www.keycloakify.dev/).
 
 Google, Apple and Discord login, and how social logins join existing
-accounts, are described in [docs/social-login.md](docs/social-login.md). A fixed login code
+accounts, are described in [docs/social-login.md](docs/social-login.md);
+passkeys in [docs/passkeys.md](docs/passkeys.md). A fixed login code
 for an app store reviewer's account, limited to one client and a date, is
 described in [docs/review-accounts.md](docs/review-accounts.md).
 

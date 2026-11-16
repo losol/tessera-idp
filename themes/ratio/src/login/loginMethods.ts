@@ -9,8 +9,9 @@
  *
  * - Order is the preference: the first renderable entry is the lead method the
  *   page emphasises; the rest are offered alongside it, in list order.
- * - Unknown entries (e.g. `passkey` before the theme can render it, or an IdP
- *   that is not enabled in the realm) are ignored.
+ * - `passkey` is the WebAuthn passwordless step, renderable only on a page
+ *   Keycloak offers it on (see authSelections.ts). Elsewhere it is ignored,
+ *   like an IdP that is not enabled in the realm or any unknown entry.
  * - Attribute absent, or nothing renderable → `null`, and the page falls back
  *   to its default: every realm provider, email code behind the link. Falling
  *   back rather than rendering an empty page is deliberate — being strict here
@@ -28,12 +29,15 @@ export const LOGIN_METHODS_ATTRIBUTE = "tessera.login-methods";
 /** The reserved entry for the email one-time-code form. */
 export const OTP_METHOD = "otp";
 
+/** The reserved entry for the passkey (WebAuthn passwordless) step. */
+export const PASSKEY_METHOD = "passkey";
+
 /** An identity provider as the start page receives it (see KcContext.ts). */
 export type Provider = NonNullable<
     Extract<KcContext, { pageId: "login-tessera-otp-start.ftl" }>["social"]["providers"]
 >[number];
 
-export type LoginMethod = { kind: "otp" } | { kind: "idp"; provider: Provider };
+export type LoginMethod = { kind: "otp" } | { kind: "passkey" } | { kind: "idp"; provider: Provider };
 
 /**
  * Resolves the configured methods against the realm's providers. Returns the
@@ -41,7 +45,8 @@ export type LoginMethod = { kind: "otp" } | { kind: "idp"; provider: Provider };
  */
 export function resolveLoginMethods(
     attributes: Record<string, string> | undefined,
-    providers: Provider[] | undefined
+    providers: Provider[] | undefined,
+    passkeyOffered = false
 ): LoginMethod[] | null {
     const raw = attributes?.[LOGIN_METHODS_ATTRIBUTE];
     if (raw === undefined) return null;
@@ -55,6 +60,10 @@ export function resolveLoginMethods(
 
         if (entry === OTP_METHOD) {
             methods.push({ kind: "otp" });
+            continue;
+        }
+        if (entry === PASSKEY_METHOD) {
+            if (passkeyOffered) methods.push({ kind: "passkey" });
             continue;
         }
         // Aliases are case-sensitive in Keycloak, so match exactly.

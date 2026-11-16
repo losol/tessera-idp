@@ -26,6 +26,10 @@
  * `?clientName=` / `?clientUrl=` the client's name and base URL, so each
  * per-client layout can be rendered.
  *
+ * An optional `?noSelections` param empties Keycloak's "try another way"
+ * list on the WebAuthn pages, as on a flow where the passkey step is the
+ * only one.
+ *
  * An optional `?traceId=` param sets the error page's trace id, as Keycloak
  * does when tracing is enabled.
  *
@@ -68,6 +72,7 @@ for (const [name, value] of params) {
     if (name.startsWith("attr.")) clientAttributes[name.slice("attr.".length)] = value;
 }
 const clientName = params.get("clientName");
+const noSelections = params.has("noSelections");
 const clientUrl = params.get("clientUrl");
 
 const overrides: DeepPartial<KcContext> = {
@@ -88,7 +93,8 @@ const overrides: DeepPartial<KcContext> = {
             ...(clientUrl !== null && { baseUrl: clientUrl })
         }
     }),
-    ...(traceId !== null && { traceId })
+    ...(traceId !== null && { traceId }),
+    ...(noSelections && { auth: { authenticationSelections: [] } })
 };
 
 const kcContext = getKcContextMock({ pageId, overrides });

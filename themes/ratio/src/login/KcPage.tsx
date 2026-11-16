@@ -19,6 +19,12 @@ const LoginTesseraOtpStart = lazy(() => import("./pages/LoginTesseraOtpStart"));
 const LoginTesseraOtpCode = lazy(() => import("./pages/LoginTesseraOtpCode"));
 const ErrorPage = lazy(() => import("./pages/Error"));
 const LoginRecoveryAuthnCodeConfig = lazy(() => import("./pages/LoginRecoveryAuthnCodeConfig"));
+// Passkeys (docs/passkeys.md): the step as a start page, creating one, the
+// error page, and Keycloak's chooser between the step and the email code.
+const WebauthnAuthenticate = lazy(() => import("./pages/WebauthnAuthenticate"));
+const WebauthnRegister = lazy(() => import("./pages/WebauthnRegister"));
+const WebauthnError = lazy(() => import("./pages/WebauthnError"));
+const SelectAuthenticator = lazy(() => import("./pages/SelectAuthenticator"));
 
 // Ratio's base CSS hides <html> (opacity: 0) until a data-theme is set; that
 // attribute also activates the light/dark design tokens (--primary, --text, …).
@@ -99,6 +105,46 @@ export default function KcPage(props: { kcContext: KcContext }) {
                     case "error.ftl":
                         return (
                             <ErrorPage
+                                kcContext={kcContext}
+                                i18n={i18n}
+                                classes={classes}
+                                Template={Template}
+                                doUseDefaultCss={false}
+                            />
+                        );
+                    case "webauthn-authenticate.ftl":
+                        return (
+                            <WebauthnAuthenticate
+                                kcContext={kcContext}
+                                i18n={i18n}
+                                classes={classes}
+                                Template={Template}
+                                doUseDefaultCss={false}
+                            />
+                        );
+                    case "webauthn-register.ftl":
+                        return (
+                            <WebauthnRegister
+                                kcContext={kcContext}
+                                i18n={i18n}
+                                classes={classes}
+                                Template={Template}
+                                doUseDefaultCss={false}
+                            />
+                        );
+                    case "webauthn-error.ftl":
+                        return (
+                            <WebauthnError
+                                kcContext={kcContext}
+                                i18n={i18n}
+                                classes={classes}
+                                Template={Template}
+                                doUseDefaultCss={false}
+                            />
+                        );
+                    case "select-authenticator.ftl":
+                        return (
+                            <SelectAuthenticator
                                 kcContext={kcContext}
                                 i18n={i18n}
                                 classes={classes}

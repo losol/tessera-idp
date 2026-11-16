@@ -8,7 +8,17 @@
 import { readFile } from "node:fs/promises";
 import { test, expect, type Page } from "@playwright/test";
 
-const PAGE_IDS = ["login.ftl", "login-tessera-otp-start.ftl", "login-tessera-otp-code.ftl", "login-update-profile.ftl", "error.ftl"];
+const PAGE_IDS = [
+    "login.ftl",
+    "login-tessera-otp-start.ftl",
+    "login-tessera-otp-code.ftl",
+    "login-update-profile.ftl",
+    "error.ftl",
+    "webauthn-authenticate.ftl",
+    "webauthn-register.ftl",
+    "webauthn-error.ftl",
+    "select-authenticator.ftl"
+];
 
 // `null` = realm default locale; "nb" exercises Keycloak's Norwegian Bokmål
 // tag, which keycloakify's built-in default set does not know (it uses "no").
@@ -596,4 +606,105 @@ test("the page links the Tessera favicon", async ({ page, request }) => {
     for (const path of ["/favicon.svg", "/favicon-32x32.png", "/apple-touch-icon.png"]) {
         expect((await request.get(path)).status(), path).toBe(200);
     }
+});
+
+// Passkeys (docs/passkeys.md). The mock flow has the passkey step first and
+// the email code (execution "exec-otp") as the alternative.
+test.describe("passkeys", () => {
+    const start = "/smoke/index.html?pageId=webauthn-authenticate.ftl";
+    const card = (page: import("@playwright/test").Page) => page.locator(".ratio-login__card");
+
+    test("the passkey step is the start page: passkey leads, providers follow, email code is a switch", async ({ page }) => {
+        await page.goto(start);
+        await expect(card(page)).toBeVisible({ timeout: 10000 });
+        const buttons = page.locator(".ratio-login__social-list .ratio-login__social-btn");
+        await expect(buttons.first()).toHaveId("authenticateWebAuthnButton");
+        await expect(buttons.first()).toHaveClass(/ratio-login__social-btn--lead/);
+        await expect(buttons.first()).toContainText("Sign in with passkey");
+        await expect(buttons).toHaveCount(5);
+        await expect(page.locator("#social-google")).toContainText("Continue with Google");
+
+        // The email code posts the switch to Keycloak, to the tessera-otp execution.
+        const link = page.locator("#kc-switch-to-otp");
+        await expect(link).toHaveText("Log in with a one-time code");
+        await expect(link.locator("xpath=ancestor::form").locator('input[name="authenticationExecution"]')).toHaveValue("exec-otp");
+
+        // Keycloak's script contract: the hidden form and its fields.
+        for (const id of ["webauth", "clientDataJSON", "authenticatorData", "signature", "credentialId", "userHandle", "error"]) {
+            await expect(page.locator(`#${id}`)).toHaveCount(1);
+        }
+    });
+
+    test("tessera.login-methods orders the passkey like any method", async ({ page }) => {
+        await page.goto(`${start}&methods=google,passkey,otp`);
+        await expect(card(page)).toBeVisible({ timeout: 10000 });
+        const items = page.locator(".ratio-login__social-list > li > *:first-child");
+        await expect(items).toHaveCount(3);
+        await expect(items.nth(0)).toHaveId("social-google");
+        await expect(items.nth(0)).toHaveClass(/--lead/);
+        await expect(items.nth(1)).toHaveId("authenticateWebAuthnButton");
+        await expect(items.nth(2).locator("button")).toHaveId("kc-switch-to-otp");
+        await expect(page.locator(".ratio-login__otp")).toHaveCount(0);
+    });
+
+    test("a leading email code is the filled switch button", async ({ page }) => {
+        await page.goto(`${start}&methods=otp,passkey`);
+        await expect(card(page)).toBeVisible({ timeout: 10000 });
+        const first = page.locator(".ratio-login__social-list > li").first().locator("button");
+        await expect(first).toHaveId("kc-switch-to-otp");
+        await expect(first).toHaveClass(/--lead/);
+        await expect(page.locator("#authenticateWebAuthnButton")).not.toHaveClass(/--lead/);
+    });
+
+    test("the way to the email code stays even when the client lists only the passkey", async ({ page }) => {
+        await page.goto(`${start}&methods=passkey`);
+        await expect(card(page)).toBeVisible({ timeout: 10000 });
+        await expect(page.locator(".ratio-login__social-list .ratio-login__social-btn")).toHaveCount(1);
+        await expect(page.locator(".ratio-login__otp #kc-switch-to-otp")).toHaveCount(1);
+    });
+
+    test("without an alternative step there is nothing to switch to", async ({ page }) => {
+        await page.goto(`${start}&noSelections`);
+        await expect(card(page)).toBeVisible({ timeout: 10000 });
+        await expect(page.locator("#authenticateWebAuthnButton")).toHaveCount(1);
+        await expect(page.locator("#kc-switch-to-otp")).toHaveCount(0);
+    });
+
+    test("the error page leads to the email code and can retry the passkey", async ({ page }) => {
+        await page.goto("/smoke/index.html?pageId=webauthn-error.ftl");
+        await expect(card(page)).toBeVisible({ timeout: 10000 });
+        await expect(page.locator("#kc-switch-to-otp")).toHaveClass(/--primary/);
+        await expect(page.locator('#kc-switch-to-otp-form input[name="authenticationExecution"]')).toHaveValue("exec-otp");
+        await expect(page.locator('#kc-error-credential-form input[name="isSetRetry"]')).toHaveValue("retry");
+        await expect(page.locator("#kc-try-again")).toHaveClass(/--secondary/);
+        // keycloakify's mock is an application-initiated action: it can be cancelled.
+        await expect(page.locator('#cancelWebAuthnAIA[name="cancel-aia"]')).toHaveCount(1);
+    });
+
+    test("creating a passkey can be declined when the app asked for it", async ({ page }) => {
+        await page.goto("/smoke/index.html?pageId=webauthn-register.ftl");
+        await expect(card(page)).toBeVisible({ timeout: 10000 });
+        await expect(page.locator("#authenticateWebAuthnButton")).toHaveText("Create passkey");
+        await expect(page.locator('#cancelWebAuthnAIA[name="cancel-aia"]')).toHaveText("Not now");
+        await expect(page.locator(".ratio-login__points li")).toHaveCount(3);
+        for (const id of ["register", "clientDataJSON", "attestationObject", "publicKeyCredentialId", "authenticatorLabel", "transports", "authenticatorAttachment", "error"]) {
+            await expect(page.locator(`#${id}`)).toHaveCount(1);
+        }
+        // The create button lives outside the form: Keycloak's script submits it.
+        await expect(page.locator("#register #authenticateWebAuthnButton")).toHaveCount(0);
+    });
+
+    test("the chooser uses the theme's labels for the passkey and the email code", async ({ page }) => {
+        await page.goto("/smoke/index.html?pageId=select-authenticator.ftl");
+        await expect(card(page)).toBeVisible({ timeout: 10000 });
+        const options = page.locator('#kc-select-credential-form button[name="authenticationExecution"]');
+        await expect(options).toHaveCount(2);
+    });
+
+    test("the passkey pages speak Norwegian on an nb realm", async ({ page }) => {
+        await page.goto(`${start}&locale=nb`);
+        await expect(card(page)).toBeVisible({ timeout: 10000 });
+        await expect(page.locator("#authenticateWebAuthnButton")).toContainText("Logg inn med passnøkkel");
+        await expect(page.locator("#kc-switch-to-otp")).toHaveText("Logg inn med engangspassord");
+    });
 });
