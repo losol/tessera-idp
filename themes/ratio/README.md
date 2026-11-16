@@ -54,9 +54,9 @@ form).
 - **Nothing renderable falls back to the default page**, never an empty one.
 
 Provider buttons read "Continue with <display name>" (localised), with a brand
-mark for Google, Apple and GitHub (matched on Keycloak's provider id, or the
-alias for a generic OIDC provider named like one). Other providers get the
-display name only.
+mark for Google, Apple, GitHub and Discord (matched on Keycloak's provider id,
+or the alias for a generic OIDC provider named like one). Other providers get
+the display name only.
 
 This is presentation only: the email form and every provider stay reachable by
 a crafted POST or a `kc_idp_hint`. Restricting a client for real is a

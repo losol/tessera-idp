@@ -142,6 +142,15 @@ test("login-tessera-otp-start.ftl renders a provider aliased __proto__", async (
     expect(errors).toEqual([]);
 });
 
+// Discord carries a brand mark too, matched on the alias when the realm's
+// provider id is something else.
+test("login-tessera-otp-start.ftl gives a Discord provider its mark", async ({ page }) => {
+    await page.goto("/smoke/index.html?pageId=login-tessera-otp-start.ftl&providers=discord");
+    await expect(page.locator(".ratio-login__card")).toBeVisible({ timeout: 10000 });
+    await expect(page.locator("#social-discord")).toContainText("Continue with discord");
+    await expect(page.locator("#social-discord .ratio-login__social-icon")).toHaveCount(1);
+});
+
 // Error page: the time is always shown; the trace id only when Keycloak set
 // one (tracing enabled), and then it is the reference support looks up.
 for (const traceId of [null, "4c2aec90375e5ef6c3ecc0a3ac7d87fe"]) {

@@ -5,11 +5,11 @@ an optimized runtime:
 
 - **`plugins/tessera-otp/`** — Keycloak SPI providers (Java/Maven): the email
   one-time-code authenticator and the [Sign in with Apple](docs/apple-login.md)
-  identity provider.
+  and [Discord](docs/discord-login.md) identity providers.
 - **`themes/ratio/`** — the Ratio login theme, built with [Keycloakify](https://www.keycloakify.dev/).
 
-Google and Apple login, and how social logins join existing accounts, are
-described in [docs/social-login.md](docs/social-login.md). A fixed login code
+Google, Apple and Discord login, and how social logins join existing
+accounts, are described in [docs/social-login.md](docs/social-login.md). A fixed login code
 for an app store reviewer's account, limited to one client and a date, is
 described in [docs/review-accounts.md](docs/review-accounts.md).
 
