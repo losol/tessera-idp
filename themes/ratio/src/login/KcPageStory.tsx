@@ -11,10 +11,8 @@ const kcContextExtension: KcContextExtension = {
         ...kcEnvDefaults
     }
 };
-const kcContextExtensionPerPage: KcContextExtensionPerPage = {
-    "login-tessera-otp-start.ftl": {
-        social: {
-            providers: [
+// The mock realm's identity providers, on every page that lists them.
+const providers = [
                 {
                     loginUrl: "#",
                     alias: "vipps",
@@ -39,8 +37,37 @@ const kcContextExtensionPerPage: KcContextExtensionPerPage = {
                     providerId: "apple",
                     displayName: "Apple"
                 }
-            ]
-        }
+];
+
+// Keycloak's "try another way" list on a flow with the passkey step first
+// and the email code as the alternative (docs/passkeys.md).
+export const PASSKEY_EXECUTION_ID = "exec-passkey";
+export const OTP_EXECUTION_ID = "exec-otp";
+const authenticationSelections = [
+    {
+        authExecId: PASSKEY_EXECUTION_ID,
+        displayName: "webauthn-passwordless-display-name",
+        helpText: "webauthn-passwordless-help-text",
+        iconCssClass: "kcAuthenticatorWebAuthnPasswordlessClass"
+    },
+    {
+        authExecId: OTP_EXECUTION_ID,
+        displayName: "Tessera OTP",
+        helpText: "Sends a one-time code to the user's email address for passwordless authentication.",
+        iconCssClass: "kcAuthenticatorDefaultClass"
+    }
+];
+
+const kcContextExtensionPerPage: KcContextExtensionPerPage = {
+    "webauthn-authenticate.ftl": {
+        social: { providers },
+        auth: { authenticationSelections }
+    },
+    "webauthn-error.ftl": {
+        auth: { authenticationSelections }
+    },
+    "login-tessera-otp-start.ftl": {
+        social: { providers }
     },
     "login-tessera-otp-code.ftl": {
         sentToEmail: "user@example.com"

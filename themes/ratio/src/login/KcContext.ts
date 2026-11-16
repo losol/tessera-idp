@@ -43,6 +43,27 @@ export type KcContextExtensionPerPage = {
         // confirm they typed it correctly. Rendered as escaped React text.
         sentToEmail?: string;
     };
+    // Keycloak sets `auth.authenticationSelections` on every challenge of a
+    // flow with alternatives (the "try another way" list), and `social` on
+    // every page. keycloakify types them for select-authenticator.ftl only.
+    "webauthn-authenticate.ftl": {
+        social?: {
+            providers?: {
+                loginUrl: string;
+                alias: string;
+                providerId: string;
+                displayName: string;
+            }[];
+        };
+        auth?: {
+            authenticationSelections?: AuthenticationSelection[];
+        };
+    };
+    "webauthn-error.ftl": {
+        auth?: {
+            authenticationSelections?: AuthenticationSelection[];
+        };
+    };
     "error.ftl": {
         // OpenTelemetry trace id of the request that failed. Keycloak sets it
         // on pages built by its login forms provider, and only when tracing
@@ -54,3 +75,11 @@ export type KcContextExtensionPerPage = {
 };
 
 export type KcContext = ExtendKcContext<KcContextExtension, KcContextExtensionPerPage>;
+
+/** One entry of Keycloak's "try another way" list. */
+export type AuthenticationSelection = {
+    authExecId: string;
+    displayName: string;
+    helpText: string;
+    iconCssClass?: string;
+};
